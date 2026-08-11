@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
 project_name: kalshi-perp
@@ -12,25 +13,29 @@ builds:
     binary: kalshi-perp
     env:
       - CGO_ENABLED=0
+    flags:
+      - -trimpath
     ldflags:
       - -s -w -X main.version={{.Version}}
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
+    # Targets: linux/amd64, linux/arm64, darwin/arm64, darwin/amd64
 
 archives:
-  - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format_overrides:
-      - goos: windows
-        format: zip
+  - formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - README.md
 
 checksum:
   name_template: checksums.txt
+  algorithm: sha256
 
 changelog:
   sort: asc
@@ -38,6 +43,28 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^ci:"
+      - Merge pull request
+      - Merge branch
 
 release:
   draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  footer: |
+    ## Install
+
+    Download the archive for your platform, extract, and place `kalshi-perp` on your `PATH`.
+
+    | Platform | Artifact |
+    |---|---|
+    | macOS Apple Silicon | `kalshi-perp_*_darwin_arm64.tar.gz` |
+    | macOS Intel | `kalshi-perp_*_darwin_amd64.tar.gz` |
+    | Linux x86_64 | `kalshi-perp_*_linux_amd64.tar.gz` |
+    | Linux ARM64 | `kalshi-perp_*_linux_arm64.tar.gz` |
+
+    Or from source:
+
+    ```bash
+    go install github.com/aaronfaby/kalshi-perp-cli/cmd/kalshi-perp@v{{.Version}}
+    ```

@@ -1,7 +1,9 @@
 /kalshi-perp
 /kalshi-perp.exe
 /dist/
+/kalshi-perp-*
 *.pem
 *.key
 .env
 .DS_Store
+.goreleaser-dist/

@@ -11,15 +11,40 @@ Feature-complete CLI for the [Kalshi perpetual futures (margin) API](https://doc
 
 ## Install
 
+### Prebuilt binaries (recommended)
+
+Download the latest release for your platform from  
+[GitHub Releases](https://github.com/AaronFaby/kalshi-perp-cli/releases):
+
+| Platform | Asset |
+|---|---|
+| macOS Apple Silicon (arm64) | `kalshi-perp_*_darwin_arm64.tar.gz` |
+| macOS Intel (amd64) | `kalshi-perp_*_darwin_amd64.tar.gz` |
+| Linux x86_64 | `kalshi-perp_*_linux_amd64.tar.gz` |
+| Linux ARM64 | `kalshi-perp_*_linux_arm64.tar.gz` |
+
 ```bash
-# From source
+# Example: macOS Apple Silicon
+tar -xzf kalshi-perp_*_darwin_arm64.tar.gz
+sudo mv kalshi-perp /usr/local/bin/
+kalshi-perp version
+```
+
+Releases are built automatically by GitHub Actions (GoReleaser) when a `v*` tag is pushed.
+
+### From source
+
+```bash
 go install github.com/aaronfaby/kalshi-perp-cli/cmd/kalshi-perp@latest
 
 # Or build locally
-git clone https://github.com/aaronfaby/kalshi-perp-cli
+git clone https://github.com/AaronFaby/kalshi-perp-cli
 cd kalshi-perp-cli
 make build
 ./kalshi-perp version
+
+# Cross-compile release matrix into dist/
+make dist
 ```
 
 ## Quick start (demo)

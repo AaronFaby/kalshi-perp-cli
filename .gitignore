@@ -1,0 +1,7 @@
+/kalshi-perp
+/kalshi-perp.exe
+/dist/
+*.pem
+*.key
+.env
+.DS_Store

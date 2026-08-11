@@ -163,7 +163,8 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 	create.Flags().BoolVar(&dryRun, "dry-run", false, "Print request body without sending")
 	cmd.AddCommand(create)
 
-	cmd.AddCommand(&cobra.Command{
+	var cancelSubaccount int
+	cancel := &cobra.Command{
 		Use:   "cancel <order_id>",
 		Short: "Cancel an order",
 		Args:  cobra.ExactArgs(1),
@@ -172,15 +173,18 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := rt.client.CancelMarginOrder(ctx(), args[0])
+			out, err := rt.client.CancelMarginOrder(ctx(), args[0], ptrInt(cancelSubaccount, cmd.Flags().Changed("subaccount")))
 			if err != nil {
 				return err
 			}
 			return rt.out.Print(out)
 		},
-	})
+	}
+	cancel.Flags().IntVar(&cancelSubaccount, "subaccount", 0, "Subaccount")
+	cmd.AddCommand(cancel)
 
 	var amendTicker, amendSide, amendPrice, amendCount, amendClientID, amendNewClientID string
+	var amendSubaccount int
 	amend := &cobra.Command{
 		Use:   "amend <order_id>",
 		Short: "Amend price and/or max fillable count",
@@ -193,7 +197,7 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := rt.client.AmendMarginOrder(ctx(), args[0], api.AmendMarginOrderRequest{
+			out, err := rt.client.AmendMarginOrder(ctx(), args[0], ptrInt(amendSubaccount, cmd.Flags().Changed("subaccount")), api.AmendMarginOrderRequest{
 				Ticker:               amendTicker,
 				Side:                 amendSide,
 				Price:                amendPrice,
@@ -213,9 +217,11 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 	amend.Flags().StringVar(&amendCount, "count", "", "New max fillable count (required)")
 	amend.Flags().StringVar(&amendClientID, "client-order-id", "", "Original client order id")
 	amend.Flags().StringVar(&amendNewClientID, "updated-client-order-id", "", "New client order id")
+	amend.Flags().IntVar(&amendSubaccount, "subaccount", 0, "Subaccount")
 	cmd.AddCommand(amend)
 
 	var reduceBy, reduceTo string
+	var decreaseSubaccount int
 	decrease := &cobra.Command{
 		Use:   "decrease <order_id>",
 		Short: "Decrease remaining size (exactly one of --reduce-by / --reduce-to)",
@@ -235,7 +241,7 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 			if reduceTo != "" {
 				req.ReduceTo = &reduceTo
 			}
-			out, err := rt.client.DecreaseMarginOrder(ctx(), args[0], req)
+			out, err := rt.client.DecreaseMarginOrder(ctx(), args[0], ptrInt(decreaseSubaccount, cmd.Flags().Changed("subaccount")), req)
 			if err != nil {
 				return err
 			}
@@ -244,6 +250,7 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 	}
 	decrease.Flags().StringVar(&reduceBy, "reduce-by", "", "Contracts to reduce by")
 	decrease.Flags().StringVar(&reduceTo, "reduce-to", "", "Contracts to reduce to")
+	decrease.Flags().IntVar(&decreaseSubaccount, "subaccount", 0, "Subaccount")
 	cmd.AddCommand(decrease)
 
 	return cmd

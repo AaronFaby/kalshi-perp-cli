@@ -56,6 +56,8 @@ func newConfigCmd(opts *RootOptions) *cobra.Command {
 			key := cfg.APIKey
 			if len(key) > 4 {
 				key = "…" + key[len(key)-4:]
+			} else if key != "" {
+				key = "…"
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "env: %s\napi_key: %s\nprivate_key_path: %s\nbase_url: %s\nws_url: %s\nformat: %s\ntimeout_sec: %d\nconfig: %s\n",
 				cfg.Env, key, cfg.PrivateKeyPath, cfg.BaseURL, cfg.WSURL, cfg.Format, cfg.TimeoutSec, cfg.ConfigPath)

@@ -132,10 +132,16 @@ func newFillsCmd(opts *RootOptions) *cobra.Command {
 				if !all || out.Cursor == "" {
 					rows := make([][]string, 0, len(allFills))
 					for _, f := range allFills {
-						rows = append(rows, []string{f.FillID, f.OrderID, f.Ticker, f.Side, f.Price, f.Count})
+						rows = append(rows, []string{
+							f.FillID, f.OrderID, f.Ticker, f.Side, f.Price, f.Count,
+							f.EntryPrice, f.Fees, f.RealizedPnL,
+						})
 					}
 					payload := map[string]any{"fills": allFills, "cursor": out.Cursor}
-					return rt.out.PrintTable([]string{"FILL_ID", "ORDER_ID", "TICKER", "SIDE", "PRICE", "COUNT"}, rows, payload)
+					return rt.out.PrintTable(
+						[]string{"FILL_ID", "ORDER_ID", "TICKER", "SIDE", "PRICE", "COUNT", "ENTRY", "FEES", "R_PNL"},
+						rows, payload,
+					)
 				}
 				p.Cursor = out.Cursor
 			}

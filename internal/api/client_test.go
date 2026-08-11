@@ -137,7 +137,12 @@ func TestOrderMutationsSendSubaccount(t *testing.T) {
 		if r.URL.Query().Get("subaccount") != "7" {
 			t.Errorf("subaccount = %q", r.URL.Query().Get("subaccount"))
 		}
-		_, _ = w.Write([]byte(`{}`))
+		switch {
+		case r.Method == http.MethodDelete:
+			_, _ = w.Write([]byte(`{"order_id":"order","reduced_by":"1.00"}`))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
 	})
 	subaccount := 7
 	if _, err := c.CancelMarginOrder(context.Background(), "order", &subaccount); err != nil {
@@ -147,6 +152,76 @@ func TestOrderMutationsSendSubaccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := c.DecreaseMarginOrder(context.Background(), "order", &subaccount, DecreaseMarginOrderRequest{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParseErrorBody_NestedAndFlat(t *testing.T) {
+	nested := parseErrorBody([]byte(`{"error":{"code":"available_balance_too_low","message":"available balance too low"}}`))
+	if nested.Code != "available_balance_too_low" || nested.Message != "available balance too low" {
+		t.Fatalf("nested: %+v", nested)
+	}
+	flat := parseErrorBody([]byte(`{"code":"x","message":"y","details":"z"}`))
+	if flat.Code != "x" || flat.Message != "y" || flat.Details != "z" {
+		t.Fatalf("flat: %+v", flat)
+	}
+}
+
+func TestDo_NestedErrorBody(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(`{"error":{"code":"available_balance_too_low","message":"available balance too low"}}`))
+	})
+	err := c.Get(context.Background(), "/margin/balance", nil, &GetMarginBalanceResponse{})
+	ae, ok := err.(*APIError)
+	if !ok {
+		t.Fatalf("%T %v", err, err)
+	}
+	if ae.Body.Code != "available_balance_too_low" {
+		t.Fatalf("%+v", ae.Body)
+	}
+	if !strings.Contains(ae.Error(), "available balance too low") {
+		t.Fatal(ae.Error())
+	}
+}
+
+func TestCancelMarginOrder_DecodesReducedBy(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Fatalf("method %s", r.Method)
+		}
+		_, _ = w.Write([]byte(`{"order_id":"oid","client_order_id":"cid","reduced_by":"3.00"}`))
+	})
+	out, err := c.CancelMarginOrder(context.Background(), "oid", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.OrderID != "oid" || out.ReducedBy != "3.00" {
+		t.Fatalf("%+v", out)
+	}
+}
+
+func TestCreateOrder_JSONUsesFixedPointStrings(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		var raw map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+			t.Fatal(err)
+		}
+		// Ensure count/price are JSON strings, not numbers.
+		if _, ok := raw["count"].(string); !ok {
+			t.Fatalf("count type %T", raw["count"])
+		}
+		if _, ok := raw["price"].(string); !ok {
+			t.Fatalf("price type %T", raw["price"])
+		}
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte(`{"order_id":"o","fill_count":"0.00","remaining_count":"1.00"}`))
+	})
+	_, err := c.CreateMarginOrder(context.Background(), CreateMarginOrderRequest{
+		Ticker: "T", ClientOrderID: "c", Side: "bid", Count: "1.00", Price: "6.2000",
+		TimeInForce: "good_till_canceled", SelfTradePreventionType: "maker",
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 }

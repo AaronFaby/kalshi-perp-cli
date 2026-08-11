@@ -129,12 +129,12 @@ func (c *Client) CreateMarginOrder(ctx context.Context, req CreateMarginOrderReq
 	return &out, err
 }
 
-func (c *Client) CancelMarginOrder(ctx context.Context, orderID string, subaccount *int) (map[string]any, error) {
+func (c *Client) CancelMarginOrder(ctx context.Context, orderID string, subaccount *int) (*CancelMarginOrderResponse, error) {
 	q := Q()
 	SetInt(q, "subaccount", subaccount)
-	var out map[string]any
+	var out CancelMarginOrderResponse
 	err := c.Do(ctx, http.MethodDelete, "/margin/orders/"+url.PathEscape(orderID), q, nil, &out)
-	return out, err
+	return &out, err
 }
 
 func (c *Client) AmendMarginOrder(ctx context.Context, orderID string, subaccount *int, req AmendMarginOrderRequest) (map[string]any, error) {

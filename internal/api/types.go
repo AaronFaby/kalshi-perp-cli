@@ -138,23 +138,32 @@ type CreateMarginOrderResponse struct {
 }
 
 type MarginOrder struct {
-	OrderID                  string            `json:"order_id"`
-	UserID                   string            `json:"user_id,omitempty"`
-	ClientOrderID            string            `json:"client_order_id"`
-	Ticker                   string            `json:"ticker"`
-	Side                     string            `json:"side"`
-	Price                    FixedPointDollars `json:"price"`
-	FillCount                FixedPointCount   `json:"fill_count"`
-	RemainingCount           FixedPointCount   `json:"remaining_count"`
-	LastUpdateReason         string            `json:"last_update_reason,omitempty"`
-	ExpirationTime           *string           `json:"expiration_time,omitempty"`
-	CreatedTime              *string           `json:"created_time,omitempty"`
-	LastUpdateTime           *string           `json:"last_update_time,omitempty"`
-	SelfTradePreventionType  *string           `json:"self_trade_prevention_type,omitempty"`
-	CancelOrderOnPause       bool              `json:"cancel_order_on_pause,omitempty"`
-	OrderGroupID             string            `json:"order_group_id,omitempty"`
-	Subaccount               *int              `json:"subaccount,omitempty"`
-	Status                   string            `json:"status,omitempty"`
+	OrderID                 string            `json:"order_id"`
+	UserID                  string            `json:"user_id,omitempty"`
+	ClientOrderID           string            `json:"client_order_id"`
+	Ticker                  string            `json:"ticker"`
+	Side                    string            `json:"side"`
+	Price                   FixedPointDollars `json:"price"`
+	FillCount               FixedPointCount   `json:"fill_count"`
+	RemainingCount          FixedPointCount   `json:"remaining_count"`
+	LastUpdateReason        string            `json:"last_update_reason,omitempty"`
+	ExpirationTime          *string           `json:"expiration_time,omitempty"`
+	CreatedTime             *string           `json:"created_time,omitempty"`
+	LastUpdateTime          *string           `json:"last_update_time,omitempty"`
+	SelfTradePreventionType *string           `json:"self_trade_prevention_type,omitempty"`
+	CancelOrderOnPause      bool              `json:"cancel_order_on_pause,omitempty"`
+	OrderGroupID            string            `json:"order_group_id,omitempty"`
+	OrderSource             string            `json:"order_source,omitempty"`
+	OrderReason             string            `json:"order_reason,omitempty"`
+	Subaccount              *int              `json:"subaccount,omitempty"`
+	Status                  string            `json:"status,omitempty"`
+}
+
+// CancelMarginOrderResponse is returned by DELETE /margin/orders/{order_id}.
+type CancelMarginOrderResponse struct {
+	OrderID       string          `json:"order_id"`
+	ClientOrderID string          `json:"client_order_id,omitempty"`
+	ReducedBy     FixedPointCount `json:"reduced_by"`
 }
 
 type GetMarginOrdersResponse struct {

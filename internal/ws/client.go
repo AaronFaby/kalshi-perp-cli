@@ -92,13 +92,23 @@ func (c *Client) Run(ctx context.Context, params SubscribeParams, emit func(Mess
 }
 
 func (c *Client) subscribe(ctx context.Context, conn *websocket.Conn, msgID *atomic.Int64, params SubscribeParams) error {
+	id := msgID.Add(1)
+	b, err := BuildSubscribeMessage(id, params)
+	if err != nil {
+		return err
+	}
+	if c.Logf != nil {
+		c.Logf("ws subscribe: %s", string(b))
+	}
+	return conn.Write(ctx, websocket.MessageText, b)
+}
+
+// BuildSubscribeMessage constructs the margin WS subscribe command JSON body.
+func BuildSubscribeMessage(id int64, params SubscribeParams) ([]byte, error) {
 	channels := params.Channels
 	if len(channels) == 0 {
 		channels = []string{"ticker"}
 	}
-
-	// One subscribe per channel (or batch if API allows — send batch in channels array).
-	id := msgID.Add(1)
 	cmd := map[string]any{
 		"id":  id,
 		"cmd": "subscribe",
@@ -114,14 +124,7 @@ func (c *Client) subscribe(ctx context.Context, conn *websocket.Conn, msgID *ato
 			p["market_tickers"] = params.Tickers
 		}
 	}
-	b, err := json.Marshal(cmd)
-	if err != nil {
-		return err
-	}
-	if c.Logf != nil {
-		c.Logf("ws subscribe: %s", string(b))
-	}
-	return conn.Write(ctx, websocket.MessageText, b)
+	return json.Marshal(cmd)
 }
 
 // RunWithReconnect loops Run with exponential backoff when reconnect is true.

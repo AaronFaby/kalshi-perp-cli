@@ -44,19 +44,22 @@ var requiredPaths = []string{
 	"/margin/order_groups/{order_group_id}/limit",
 }
 
-func TestRequiredPathsPresentInClientSource(t *testing.T) {
+func repoRoot(t *testing.T) string {
+	t.Helper()
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("caller")
 	}
-	dir := filepath.Dir(thisFile)
-	src, err := os.ReadFile(filepath.Join(dir, "endpoints.go"))
+	return filepath.Join(filepath.Dir(thisFile), "..", "..")
+}
+
+func TestRequiredPathsPresentInClientSource(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join(repoRoot(t), "internal", "api", "endpoints.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	body := string(src)
 	for _, p := range requiredPaths {
-		// convert {param} to dynamic join or pathescape usage — check static prefix
 		static := p
 		if i := strings.Index(p, "{"); i >= 0 {
 			static = p[:i]
@@ -67,13 +70,66 @@ func TestRequiredPathsPresentInClientSource(t *testing.T) {
 	}
 }
 
-func TestVendoredOpenAPIHasMarginPaths(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("caller")
+func TestCLICommandTreeCoversNonFCMOperations(t *testing.T) {
+	// Map OpenAPI operation intent -> required cobra Use fragment(s) under internal/cli.
+	// These strings must appear in CLI sources so subcommands stay wired.
+	// Substrings that must appear in CLI sources (Use strings / flags).
+	needles := []string{
+		"account",
+		"limits",
+		"exchange",
+		"enabled",
+		"markets",
+		"orderbook",
+		"candles",
+		"trades",
+		"orders",
+		"cancel",
+		"amend",
+		"decrease",
+		"positions",
+		"fills",
+		"balance",
+		"risk",
+		"notional-limit",
+		"fees",
+		"tiers",
+		"funding",
+		"estimate",
+		"subaccounts",
+		"groups",
+		"stream",
+		"compute-available-balance",
+		"amount-cents",
+		"client-transfer-id",
+		"dry-run",
 	}
-	root := filepath.Join(filepath.Dir(thisFile), "..", "..")
-	spec, err := os.ReadFile(filepath.Join(root, "docs", "openapi", "perps_openapi.yaml"))
+	cliDir := filepath.Join(repoRoot(t), "internal", "cli")
+	entries, err := os.ReadDir(cliDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body strings.Builder
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(cliDir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		body.Write(b)
+	}
+	src := body.String()
+	for _, n := range needles {
+		if !strings.Contains(src, n) {
+			t.Errorf("CLI sources missing %s", n)
+		}
+	}
+}
+
+func TestVendoredOpenAPIHasAllRequiredNonFCMPaths(t *testing.T) {
+	spec, err := os.ReadFile(filepath.Join(repoRoot(t), "docs", "openapi", "perps_openapi.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,12 +141,41 @@ func TestVendoredOpenAPIHasMarginPaths(t *testing.T) {
 	}
 	for _, p := range requiredPaths {
 		if !found[p] {
-			// order_group_id path template might differ slightly — soft check
-			t.Logf("openapi missing listed path %s (spec may have drifted)", p)
+			t.Errorf("openapi missing listed path %s", p)
 		}
 	}
-	// Ensure FCM paths exist in spec but we deliberately skip them in requiredPaths
+	// FCM must remain in spec but not in requiredPaths
 	if !found["/margin/fcm/subtraders"] {
 		t.Log("note: FCM path not in vendored openapi")
+	}
+	// Ensure we intentionally exclude FCM from requiredPaths
+	for _, p := range requiredPaths {
+		if strings.Contains(p, "/fcm/") {
+			t.Errorf("requiredPaths must not include FCM: %s", p)
+		}
+	}
+}
+
+func TestNonFCMOpenAPIOpsMatchClientPathCount(t *testing.T) {
+	spec, err := os.ReadFile(filepath.Join(repoRoot(t), "docs", "openapi", "perps_openapi.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Count non-FCM path keys
+	pathRe := regexp.MustCompile(`(?m)^  (/[^\n:]+):\s*$`)
+	comp := regexp.MustCompile(`(?m)^components:`)
+	loc := comp.FindIndex(spec)
+	section := string(spec)
+	if loc != nil {
+		section = string(spec[:loc[0]])
+	}
+	var nonFCM int
+	for _, m := range pathRe.FindAllStringSubmatch(section, -1) {
+		if !strings.Contains(m[1], "/fcm/") {
+			nonFCM++
+		}
+	}
+	if nonFCM < len(requiredPaths) {
+		t.Fatalf("openapi non-FCM paths %d < requiredPaths %d", nonFCM, len(requiredPaths))
 	}
 }

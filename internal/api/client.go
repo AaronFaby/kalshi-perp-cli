@@ -117,9 +117,7 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		var er ErrorResponse
-		_ = json.Unmarshal(raw, &er)
-		return &APIError{StatusCode: resp.StatusCode, Body: er, RawBody: string(raw)}
+		return &APIError{StatusCode: resp.StatusCode, Body: parseErrorBody(raw), RawBody: string(raw)}
 	}
 
 	if out == nil || len(raw) == 0 || string(raw) == "null" {
@@ -136,6 +134,21 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+// parseErrorBody accepts either a flat ErrorResponse or {"error": ErrorResponse}.
+func parseErrorBody(raw []byte) ErrorResponse {
+	var flat ErrorResponse
+	if err := json.Unmarshal(raw, &flat); err == nil && (flat.Code != "" || flat.Message != "") {
+		return flat
+	}
+	var wrapped struct {
+		Error ErrorResponse `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &wrapped); err == nil {
+		return wrapped.Error
+	}
+	return flat
 }
 
 // Get is a convenience for GET without body.

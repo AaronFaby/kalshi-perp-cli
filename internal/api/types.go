@@ -251,9 +251,10 @@ type CreateSubaccountResponse struct {
 }
 
 type ApplySubaccountTransferRequest struct {
-	FromSubaccount int   `json:"from_subaccount"`
-	ToSubaccount   int   `json:"to_subaccount"`
-	Amount         int64 `json:"amount"` // centicents typically
+	ClientTransferID string `json:"client_transfer_id"`
+	FromSubaccount   int    `json:"from_subaccount"`
+	ToSubaccount     int    `json:"to_subaccount"`
+	AmountCents      int64  `json:"amount_cents"`
 }
 
 type ApplySubaccountTransferResponse struct {

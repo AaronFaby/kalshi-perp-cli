@@ -107,3 +107,27 @@ func TestCreateOrder_PostsBody(t *testing.T) {
 		t.Fatal(resp)
 	}
 }
+
+func TestTransferBetweenSubaccounts_PostsSchemaFields(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["client_transfer_id"] != "4fb23c36-9b31-4aec-a64d-3f80b73f5e14" || body["amount_cents"] != float64(1234) {
+			t.Fatalf("body = %#v", body)
+		}
+		if _, exists := body["amount"]; exists {
+			t.Fatalf("unexpected legacy amount field: %#v", body)
+		}
+	})
+	_, err := c.TransferBetweenSubaccounts(context.Background(), ApplySubaccountTransferRequest{
+		ClientTransferID: "4fb23c36-9b31-4aec-a64d-3f80b73f5e14",
+		FromSubaccount:   0,
+		ToSubaccount:     1,
+		AmountCents:      1234,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

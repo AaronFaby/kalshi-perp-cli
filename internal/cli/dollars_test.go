@@ -23,3 +23,14 @@ func TestDollarsToCenticents(t *testing.T) {
 		}
 	}
 }
+
+func TestDollarsToUnitsRejectsInexactAndOverflowingAmounts(t *testing.T) {
+	for _, in := range []string{"0.00001", "-1", "not-money", "1000000000000000"} {
+		if _, err := dollarsToCenticents(in); err == nil {
+			t.Errorf("%q: expected error", in)
+		}
+	}
+	if got, err := dollarsToUnits("12.34", 100); err != nil || got != 1234 {
+		t.Fatalf("got %d, %v", got, err)
+	}
+}

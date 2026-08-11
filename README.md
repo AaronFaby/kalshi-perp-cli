@@ -115,7 +115,7 @@ Resolution order (highest wins):
 | `fees` | `tiers` |
 | `funding` | `estimate`, `rates`, `history` |
 | `transfer` | `exchange` (event ↔ margin; amount in centicents) |
-| `subaccounts` | `create`, `transfer` |
+| `subaccounts` | `create`, `transfer` (amount in cents) |
 | `groups` | `list`, `create`, `get`, `delete`, `reset`, `trigger`, `limit` |
 | `stream` | WebSocket JSONL |
 | `config` | `init`, `path`, `show` |

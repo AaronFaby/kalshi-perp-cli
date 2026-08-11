@@ -2,11 +2,12 @@ package cli
 
 import (
 	"fmt"
-	"math"
+	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/aaronfaby/kalshi-perp-cli/internal/api"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -386,31 +387,40 @@ func newSubaccountsCmd(opts *RootOptions) *cobra.Command {
 	})
 
 	var from, to int
-	var amountCenticents int64
-	var amountDollars string
+	var amountCents int64
+	var amountDollars, clientTransferID string
 	transfer := &cobra.Command{
 		Use:   "transfer",
 		Short: "Transfer between margin subaccounts",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			amount := amountCenticents
+			if cmd.Flags().Changed("amount-cents") == (amountDollars != "") {
+				return fmt.Errorf("provide exactly one of --amount-cents or --amount-dollars")
+			}
+			amount := amountCents
 			if amountDollars != "" {
-				c, err := dollarsToCenticents(amountDollars)
+				c, err := dollarsToUnits(amountDollars, 100)
 				if err != nil {
 					return err
 				}
 				amount = c
 			}
 			if amount <= 0 {
-				return fmt.Errorf("provide --amount-centicents or --amount-dollars")
+				return fmt.Errorf("amount must be positive")
+			}
+			if clientTransferID == "" {
+				clientTransferID = uuid.NewString()
+			} else if _, err := uuid.Parse(clientTransferID); err != nil {
+				return fmt.Errorf("invalid --client-transfer-id: %w", err)
 			}
 			rt, err := opts.setup(true)
 			if err != nil {
 				return err
 			}
 			out, err := rt.client.TransferBetweenSubaccounts(ctx(), api.ApplySubaccountTransferRequest{
-				FromSubaccount: from,
-				ToSubaccount:   to,
-				Amount:         amount,
+				ClientTransferID: clientTransferID,
+				FromSubaccount:   from,
+				ToSubaccount:     to,
+				AmountCents:      amount,
 			})
 			if err != nil {
 				return err
@@ -420,8 +430,9 @@ func newSubaccountsCmd(opts *RootOptions) *cobra.Command {
 	}
 	transfer.Flags().IntVar(&from, "from", 0, "From subaccount (0=primary)")
 	transfer.Flags().IntVar(&to, "to", 0, "To subaccount")
-	transfer.Flags().Int64Var(&amountCenticents, "amount-centicents", 0, "Amount in centicents")
-	transfer.Flags().StringVar(&amountDollars, "amount-dollars", "", "Amount in dollars")
+	transfer.Flags().Int64Var(&amountCents, "amount-cents", 0, "Amount in cents")
+	transfer.Flags().StringVar(&amountDollars, "amount-dollars", "", "Amount in dollars (converted to cents)")
+	transfer.Flags().StringVar(&clientTransferID, "client-transfer-id", "", "Idempotency UUID (auto-generated if omitted)")
 	cmd.AddCommand(transfer)
 
 	return cmd
@@ -429,14 +440,24 @@ func newSubaccountsCmd(opts *RootOptions) *cobra.Command {
 
 // dollarsToCenticents converts a dollar string to centicents (1 USD = 10_000).
 func dollarsToCenticents(s string) (int64, error) {
+	return dollarsToUnits(s, 10_000)
+}
+
+func dollarsToUnits(s string, unitsPerDollar int64) (int64, error) {
 	s = strings.TrimSpace(s)
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid dollars %q: %w", s, err)
+	amount, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return 0, fmt.Errorf("invalid dollars %q", s)
 	}
-	if f < 0 {
+	if amount.Sign() < 0 {
 		return 0, fmt.Errorf("amount must be non-negative")
 	}
-	// round to nearest centicent
-	return int64(math.Round(f * 10000)), nil
+	amount.Mul(amount, big.NewRat(unitsPerDollar, 1))
+	if !amount.IsInt() {
+		return 0, fmt.Errorf("amount has too many decimal places")
+	}
+	if !amount.Num().IsInt64() {
+		return 0, fmt.Errorf("amount is too large")
+	}
+	return amount.Num().Int64(), nil
 }

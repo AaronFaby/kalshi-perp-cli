@@ -66,9 +66,7 @@ func (c *Client) Run(ctx context.Context, params SubscribeParams, emit func(Mess
 		default:
 		}
 
-		readCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-		_, data, err := conn.Read(readCtx)
-		cancel()
+		_, data, err := conn.Read(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()

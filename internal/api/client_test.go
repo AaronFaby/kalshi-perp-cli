@@ -150,3 +150,47 @@ func TestOrderMutationsSendSubaccount(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestOrderGroupRequestsUseSubaccountAndDecodeDetails(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/create") {
+			var req CreateOrderGroupRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Subaccount == nil || *req.Subaccount != 7 {
+				t.Fatalf("request = %+v, %v", req, err)
+			}
+			_, _ = w.Write([]byte(`{"order_group_id":"group","subaccount":7}`))
+			return
+		}
+		if r.URL.Query().Get("subaccount") != "7" {
+			t.Errorf("subaccount = %q", r.URL.Query().Get("subaccount"))
+		}
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/group") {
+			_, _ = w.Write([]byte(`{"is_auto_cancel_enabled":true,"orders":["order"]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	})
+	subaccount := 7
+	if _, err := c.GetMarginOrderGroups(context.Background(), &subaccount); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreateMarginOrderGroup(context.Background(), CreateOrderGroupRequest{Subaccount: &subaccount}); err != nil {
+		t.Fatal(err)
+	}
+	details, err := c.GetMarginOrderGroup(context.Background(), "group", &subaccount)
+	if err != nil || !details.IsAutoCancelEnabled || len(details.Orders) != 1 {
+		t.Fatalf("details = %+v, %v", details, err)
+	}
+	if err := c.DeleteMarginOrderGroup(context.Background(), "group", &subaccount); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.ResetMarginOrderGroup(context.Background(), "group", &subaccount); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.TriggerMarginOrderGroup(context.Background(), "group", &subaccount); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.UpdateMarginOrderGroupLimit(context.Background(), "group", &subaccount, UpdateOrderGroupLimitRequest{}); err != nil {
+		t.Fatal(err)
+	}
+}

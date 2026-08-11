@@ -15,6 +15,8 @@ import (
 
 func newGroupsCmd(opts *RootOptions) *cobra.Command {
 	cmd := &cobra.Command{Use: "groups", Short: "Order groups"}
+	var subaccount int
+	cmd.PersistentFlags().IntVar(&subaccount, "subaccount", 0, "Subaccount")
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list",
@@ -24,7 +26,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := rt.client.GetMarginOrderGroups(ctx())
+			out, err := rt.client.GetMarginOrderGroups(ctx(), ptrInt(subaccount, cmd.Flags().Changed("subaccount")))
 			if err != nil {
 				return err
 			}
@@ -46,7 +48,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			req := api.CreateOrderGroupRequest{}
+			req := api.CreateOrderGroupRequest{Subaccount: ptrInt(subaccount, cmd.Flags().Changed("subaccount"))}
 			if cmd.Flags().Changed("contracts-limit") {
 				req.ContractsLimit = &contractsLimit
 			}
@@ -77,7 +79,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := rt.client.GetMarginOrderGroup(ctx(), args[0])
+			out, err := rt.client.GetMarginOrderGroup(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount")))
 			if err != nil {
 				return err
 			}
@@ -94,7 +96,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := rt.client.DeleteMarginOrderGroup(ctx(), args[0]); err != nil {
+			if err := rt.client.DeleteMarginOrderGroup(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount"))); err != nil {
 				return err
 			}
 			return rt.out.Print(map[string]string{"status": "deleted", "order_group_id": args[0]})
@@ -110,7 +112,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := rt.client.ResetMarginOrderGroup(ctx(), args[0]); err != nil {
+			if err := rt.client.ResetMarginOrderGroup(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount"))); err != nil {
 				return err
 			}
 			return rt.out.Print(map[string]string{"status": "reset", "order_group_id": args[0]})
@@ -126,7 +128,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := rt.client.TriggerMarginOrderGroup(ctx(), args[0]); err != nil {
+			if err := rt.client.TriggerMarginOrderGroup(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount"))); err != nil {
 				return err
 			}
 			return rt.out.Print(map[string]string{"status": "triggered", "order_group_id": args[0]})
@@ -154,7 +156,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if limitFp != "" {
 				req.ContractsLimitFp = &limitFp
 			}
-			if err := rt.client.UpdateMarginOrderGroupLimit(ctx(), args[0], req); err != nil {
+			if err := rt.client.UpdateMarginOrderGroupLimit(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount")), req); err != nil {
 				return err
 			}
 			return rt.out.Print(map[string]string{"status": "updated", "order_group_id": args[0]})

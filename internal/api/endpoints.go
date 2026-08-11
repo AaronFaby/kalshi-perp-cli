@@ -283,9 +283,11 @@ func (c *Client) GetMarginFundingHistory(ctx context.Context, p FundingHistoryPa
 
 // --- Order groups ---
 
-func (c *Client) GetMarginOrderGroups(ctx context.Context) (*GetOrderGroupsResponse, error) {
+func (c *Client) GetMarginOrderGroups(ctx context.Context, subaccount *int) (*GetOrderGroupsResponse, error) {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
 	var out GetOrderGroupsResponse
-	err := c.Get(ctx, "/margin/order_groups", nil, &out)
+	err := c.Get(ctx, "/margin/order_groups", q, &out)
 	return &out, err
 }
 
@@ -295,24 +297,34 @@ func (c *Client) CreateMarginOrderGroup(ctx context.Context, req CreateOrderGrou
 	return &out, err
 }
 
-func (c *Client) GetMarginOrderGroup(ctx context.Context, id string) (*GetOrderGroupResponse, error) {
+func (c *Client) GetMarginOrderGroup(ctx context.Context, id string, subaccount *int) (*GetOrderGroupResponse, error) {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
 	var out GetOrderGroupResponse
-	err := c.Get(ctx, "/margin/order_groups/"+url.PathEscape(id), nil, &out)
+	err := c.Get(ctx, "/margin/order_groups/"+url.PathEscape(id), q, &out)
 	return &out, err
 }
 
-func (c *Client) DeleteMarginOrderGroup(ctx context.Context, id string) error {
-	return c.Delete(ctx, "/margin/order_groups/"+url.PathEscape(id), nil)
+func (c *Client) DeleteMarginOrderGroup(ctx context.Context, id string, subaccount *int) error {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
+	return c.Do(ctx, http.MethodDelete, "/margin/order_groups/"+url.PathEscape(id), q, nil, nil)
 }
 
-func (c *Client) ResetMarginOrderGroup(ctx context.Context, id string) error {
-	return c.Put(ctx, "/margin/order_groups/"+url.PathEscape(id)+"/reset", map[string]any{}, nil)
+func (c *Client) ResetMarginOrderGroup(ctx context.Context, id string, subaccount *int) error {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
+	return c.Do(ctx, http.MethodPut, "/margin/order_groups/"+url.PathEscape(id)+"/reset", q, map[string]any{}, nil)
 }
 
-func (c *Client) TriggerMarginOrderGroup(ctx context.Context, id string) error {
-	return c.Put(ctx, "/margin/order_groups/"+url.PathEscape(id)+"/trigger", map[string]any{}, nil)
+func (c *Client) TriggerMarginOrderGroup(ctx context.Context, id string, subaccount *int) error {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
+	return c.Do(ctx, http.MethodPut, "/margin/order_groups/"+url.PathEscape(id)+"/trigger", q, map[string]any{}, nil)
 }
 
-func (c *Client) UpdateMarginOrderGroupLimit(ctx context.Context, id string, req UpdateOrderGroupLimitRequest) error {
-	return c.Put(ctx, "/margin/order_groups/"+url.PathEscape(id)+"/limit", req, nil)
+func (c *Client) UpdateMarginOrderGroupLimit(ctx context.Context, id string, subaccount *int, req UpdateOrderGroupLimitRequest) error {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
+	return c.Do(ctx, http.MethodPut, "/margin/order_groups/"+url.PathEscape(id)+"/limit", q, req, nil)
 }

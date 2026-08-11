@@ -309,6 +309,7 @@ type GetMarginFundingHistoryResponse struct {
 // --- Order groups ---
 
 type CreateOrderGroupRequest struct {
+	Subaccount       *int             `json:"subaccount,omitempty"`
 	ContractsLimit   *int64           `json:"contracts_limit,omitempty"`
 	ContractsLimitFp *FixedPointCount `json:"contracts_limit_fp,omitempty"`
 	ExchangeIndex    *int             `json:"exchange_index,omitempty"`
@@ -316,14 +317,15 @@ type CreateOrderGroupRequest struct {
 
 type CreateOrderGroupResponse struct {
 	OrderGroupID string `json:"order_group_id"`
+	Subaccount   int    `json:"subaccount"`
+	ExchangeIndex int   `json:"exchange_index"`
 }
 
 type OrderGroup struct {
 	OrderGroupID     string   `json:"id,omitempty"`
-	ID               string   `json:"order_group_id,omitempty"`
-	ContractsLimit   int64    `json:"contracts_limit,omitempty"`
+	ContractsLimitFp FixedPointCount `json:"contracts_limit_fp,omitempty"`
 	IsAutoCancelEnabled bool  `json:"is_auto_cancel_enabled,omitempty"`
-	OrderIDs         []string `json:"order_ids,omitempty"`
+	ExchangeIndex    int      `json:"exchange_index,omitempty"`
 }
 
 type GetOrderGroupsResponse struct {
@@ -331,7 +333,10 @@ type GetOrderGroupsResponse struct {
 }
 
 type GetOrderGroupResponse struct {
-	OrderGroup OrderGroup `json:"order_group"`
+	IsAutoCancelEnabled bool            `json:"is_auto_cancel_enabled"`
+	ContractsLimitFp   FixedPointCount `json:"contracts_limit_fp,omitempty"`
+	Orders             []string        `json:"orders,omitempty"`
+	ExchangeIndex      int             `json:"exchange_index,omitempty"`
 }
 
 type UpdateOrderGroupLimitRequest struct {

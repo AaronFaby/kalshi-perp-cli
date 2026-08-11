@@ -23,7 +23,11 @@ builds:
     goarch:
       - amd64
       - arm64
-    # Targets: linux/amd64, linux/arm64, darwin/arm64, darwin/amd64
+    ignore:
+      # macOS Intel not shipped — Apple Silicon only
+      - goos: darwin
+        goarch: amd64
+    # Targets: linux/amd64, linux/arm64, darwin/arm64
 
 archives:
   - formats: [tar.gz]
@@ -59,7 +63,6 @@ release:
     | Platform | Artifact |
     |---|---|
     | macOS Apple Silicon | `kalshi-perp_*_darwin_arm64.tar.gz` |
-    | macOS Intel | `kalshi-perp_*_darwin_amd64.tar.gz` |
     | Linux x86_64 | `kalshi-perp_*_linux_amd64.tar.gz` |
     | Linux ARM64 | `kalshi-perp_*_linux_arm64.tar.gz` |
 

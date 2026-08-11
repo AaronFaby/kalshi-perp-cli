@@ -19,7 +19,6 @@ Download the latest release for your platform from
 | Platform | Asset |
 |---|---|
 | macOS Apple Silicon (arm64) | `kalshi-perp_*_darwin_arm64.tar.gz` |
-| macOS Intel (amd64) | `kalshi-perp_*_darwin_amd64.tar.gz` |
 | Linux x86_64 | `kalshi-perp_*_linux_amd64.tar.gz` |
 | Linux ARM64 | `kalshi-perp_*_linux_arm64.tar.gz` |
 

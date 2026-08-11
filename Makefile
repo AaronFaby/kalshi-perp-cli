@@ -23,7 +23,6 @@ dist:
 	CGO_ENABLED=0 GOOS=linux  GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/$(BINARY)_linux_amd64  ./cmd/kalshi-perp
 	CGO_ENABLED=0 GOOS=linux  GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/$(BINARY)_linux_arm64  ./cmd/kalshi-perp
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/$(BINARY)_darwin_arm64 ./cmd/kalshi-perp
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/$(BINARY)_darwin_amd64 ./cmd/kalshi-perp
 	@ls -la $(DIST)
 
 # Local GoReleaser snapshot (requires goreleaser installed).

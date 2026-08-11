@@ -131,3 +131,22 @@ func TestTransferBetweenSubaccounts_PostsSchemaFields(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestOrderMutationsSendSubaccount(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("subaccount") != "7" {
+			t.Errorf("subaccount = %q", r.URL.Query().Get("subaccount"))
+		}
+		_, _ = w.Write([]byte(`{}`))
+	})
+	subaccount := 7
+	if _, err := c.CancelMarginOrder(context.Background(), "order", &subaccount); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.AmendMarginOrder(context.Background(), "order", &subaccount, AmendMarginOrderRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.DecreaseMarginOrder(context.Background(), "order", &subaccount, DecreaseMarginOrderRequest{}); err != nil {
+		t.Fatal(err)
+	}
+}

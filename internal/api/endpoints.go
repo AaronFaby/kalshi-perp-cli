@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 )
 
@@ -128,21 +129,27 @@ func (c *Client) CreateMarginOrder(ctx context.Context, req CreateMarginOrderReq
 	return &out, err
 }
 
-func (c *Client) CancelMarginOrder(ctx context.Context, orderID string) (map[string]any, error) {
+func (c *Client) CancelMarginOrder(ctx context.Context, orderID string, subaccount *int) (map[string]any, error) {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
 	var out map[string]any
-	err := c.Delete(ctx, "/margin/orders/"+url.PathEscape(orderID), &out)
+	err := c.Do(ctx, http.MethodDelete, "/margin/orders/"+url.PathEscape(orderID), q, nil, &out)
 	return out, err
 }
 
-func (c *Client) AmendMarginOrder(ctx context.Context, orderID string, req AmendMarginOrderRequest) (map[string]any, error) {
+func (c *Client) AmendMarginOrder(ctx context.Context, orderID string, subaccount *int, req AmendMarginOrderRequest) (map[string]any, error) {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
 	var out map[string]any
-	err := c.Post(ctx, "/margin/orders/"+url.PathEscape(orderID)+"/amend", req, &out)
+	err := c.Do(ctx, http.MethodPost, "/margin/orders/"+url.PathEscape(orderID)+"/amend", q, req, &out)
 	return out, err
 }
 
-func (c *Client) DecreaseMarginOrder(ctx context.Context, orderID string, req DecreaseMarginOrderRequest) (map[string]any, error) {
+func (c *Client) DecreaseMarginOrder(ctx context.Context, orderID string, subaccount *int, req DecreaseMarginOrderRequest) (map[string]any, error) {
+	q := Q()
+	SetInt(q, "subaccount", subaccount)
 	var out map[string]any
-	err := c.Post(ctx, "/margin/orders/"+url.PathEscape(orderID)+"/decrease", req, &out)
+	err := c.Do(ctx, http.MethodPost, "/margin/orders/"+url.PathEscape(orderID)+"/decrease", q, req, &out)
 	return out, err
 }
 

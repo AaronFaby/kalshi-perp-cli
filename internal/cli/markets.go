@@ -129,7 +129,7 @@ func newMarketsCmd(opts *RootOptions) *cobra.Command {
 			}
 			rows := make([][]string, 0, len(out.Trades))
 			for _, tr := range out.Trades {
-				rows = append(rows, []string{tr.TradeID, tr.Ticker, tr.Side, tr.Price, tr.Count})
+				rows = append(rows, []string{tr.TradeID, tr.Ticker, tr.TakerSide, tr.Price, tr.Count})
 			}
 			return rt.out.PrintTable([]string{"TRADE_ID", "TICKER", "SIDE", "PRICE", "COUNT"}, rows, out)
 		},

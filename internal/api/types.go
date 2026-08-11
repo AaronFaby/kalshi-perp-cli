@@ -100,7 +100,7 @@ type MarginTrade struct {
 	Ticker    string            `json:"ticker"`
 	Count     FixedPointCount   `json:"count"`
 	Price     FixedPointDollars `json:"price"`
-	Side      string            `json:"side,omitempty"`
+	TakerSide string            `json:"taker_side"`
 	Ts        int64             `json:"ts,omitempty"`
 	CreatedTime string          `json:"created_time,omitempty"`
 }
@@ -220,12 +220,15 @@ type MarginFill struct {
 	Side          string            `json:"side"`
 	Count         FixedPointCount   `json:"count"`
 	Price         FixedPointDollars `json:"price"`
+	EntryPrice    FixedPointDollars `json:"entry_price"`
+	Fees          FixedPointDollars `json:"fees"`
+	RealizedPnL   FixedPointDollars `json:"realized_pnl"`
+	OrderSource   string            `json:"order_source,omitempty"`
 	IsTaker       bool              `json:"is_taker,omitempty"`
 	CreatedTime   string            `json:"created_time,omitempty"`
 	Ts            int64             `json:"ts,omitempty"`
 	ClientOrderID string            `json:"client_order_id,omitempty"`
 	Subaccount    *int              `json:"subaccount,omitempty"`
-	Fee           FixedPointDollars `json:"fee,omitempty"`
 }
 
 type GetMarginFillsResponse struct {
@@ -247,7 +250,7 @@ type IntraExchangeInstanceTransferResponse struct {
 }
 
 type CreateSubaccountResponse struct {
-	Subaccount int `json:"subaccount"`
+	SubaccountNumber int `json:"subaccount_number"`
 }
 
 type ApplySubaccountTransferRequest struct {

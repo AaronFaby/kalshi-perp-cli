@@ -194,3 +194,15 @@ func TestOrderGroupRequestsUseSubaccountAndDecodeDetails(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetMarginBalanceCanRequestAvailableBalance(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("compute_available_balance") != "true" {
+			t.Errorf("compute_available_balance = %q", r.URL.Query().Get("compute_available_balance"))
+		}
+		_, _ = w.Write([]byte(`{"subaccount_balances":[],"settled_funds":"0"}`))
+	})
+	if _, err := c.GetMarginBalance(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
+}

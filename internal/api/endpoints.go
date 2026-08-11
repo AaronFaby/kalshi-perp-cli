@@ -155,9 +155,13 @@ func (c *Client) DecreaseMarginOrder(ctx context.Context, orderID string, subacc
 
 // --- Portfolio ---
 
-func (c *Client) GetMarginBalance(ctx context.Context) (*GetMarginBalanceResponse, error) {
+func (c *Client) GetMarginBalance(ctx context.Context, computeAvailableBalance bool) (*GetMarginBalanceResponse, error) {
+	q := Q()
+	if computeAvailableBalance {
+		q.Set("compute_available_balance", "true")
+	}
 	var out GetMarginBalanceResponse
-	err := c.Get(ctx, "/margin/balance", nil, &out)
+	err := c.Get(ctx, "/margin/balance", q, &out)
 	return &out, err
 }
 

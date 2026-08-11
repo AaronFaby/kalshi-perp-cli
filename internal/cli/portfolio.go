@@ -12,7 +12,8 @@ import (
 )
 
 func newBalanceCmd(opts *RootOptions) *cobra.Command {
-	return &cobra.Command{
+	var computeAvailableBalance bool
+	cmd := &cobra.Command{
 		Use:   "balance",
 		Short: "Get margin balance breakdown",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -20,7 +21,7 @@ func newBalanceCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := rt.client.GetMarginBalance(ctx())
+			out, err := rt.client.GetMarginBalance(ctx(), computeAvailableBalance)
 			if err != nil {
 				return err
 			}
@@ -42,6 +43,8 @@ func newBalanceCmd(opts *RootOptions) *cobra.Command {
 			)
 		},
 	}
+	cmd.Flags().BoolVar(&computeAvailableBalance, "compute-available-balance", false, "Compute available balance (higher API cost)")
+	return cmd
 }
 
 func newPositionsCmd(opts *RootOptions) *cobra.Command {

@@ -27,15 +27,15 @@ type GetAccountAPILimitsResponse struct {
 	// Schema may evolve; keep flexible extras via raw if needed.
 	UsageLevel string `json:"usage_level,omitempty"`
 	// OpenAPI: GetAccountApiLimitsResponse — capture common fields loosely.
-	Grants any `json:"grants,omitempty"`
+	Grants any            `json:"grants,omitempty"`
 	Raw    map[string]any `json:"-"`
 }
 
 // --- Exchange ---
 
 type ExchangeStatus struct {
-	ExchangeActive      bool `json:"exchange_active"`
-	TradingActive       bool `json:"trading_active"`
+	ExchangeActive              bool    `json:"exchange_active"`
+	TradingActive               bool    `json:"trading_active"`
 	ExchangeEstimatedResumeTime *string `json:"exchange_estimated_resume_time,omitempty"`
 }
 
@@ -45,20 +45,36 @@ type GetMarginEnabledResponse struct {
 
 // --- Markets ---
 
+type TickerPrice struct {
+	Price FixedPointDollars `json:"price"`
+	TsMs  int64             `json:"ts_ms"`
+}
+
 type MarginMarket struct {
-	Ticker                   string            `json:"ticker"`
-	Title                    string            `json:"title"`
-	Status                   string            `json:"status"`
-	ContractSize             string            `json:"contract_size"`
-	TickSize                 FixedPointDollars `json:"tick_size"`
-	FractionalTradingEnabled bool              `json:"fractional_trading_enabled"`
-	ExchangeIndex            int               `json:"exchange_index"`
-	Schedule                 any               `json:"schedule,omitempty"`
-	// Trading stats (when present on get market)
-	Price         FixedPointDollars `json:"price,omitempty"`
-	Volume        FixedPointCount   `json:"volume,omitempty"`
-	OpenInterest  FixedPointCount   `json:"open_interest,omitempty"`
-	// allow extra
+	Ticker                           string             `json:"ticker"`
+	Title                            string             `json:"title"`
+	Status                           string             `json:"status"`
+	ContractSize                     string             `json:"contract_size"`
+	TickSize                         FixedPointDollars  `json:"tick_size"`
+	FractionalTradingEnabled         bool               `json:"fractional_trading_enabled"`
+	ExchangeIndex                    int                `json:"exchange_index"`
+	Schedule                         any                `json:"schedule,omitempty"`
+	LeverageEstimate                 *float64           `json:"leverage_estimate,omitempty"`
+	LeverageEstimates                map[string]float64 `json:"leverage_estimates,omitempty"`
+	LongLeverageEstimates            map[string]float64 `json:"long_leverage_estimates,omitempty"`
+	ShortLeverageEstimates           map[string]float64 `json:"short_leverage_estimates,omitempty"`
+	Price                            FixedPointDollars  `json:"price,omitempty"`
+	Volume                           FixedPointCount    `json:"volume,omitempty"`
+	VolumeNotionalValueDollars       FixedPointDollars  `json:"volume_notional_value_dollars,omitempty"`
+	OpenInterest                     FixedPointCount    `json:"open_interest,omitempty"`
+	OpenInterestNotionalValueDollars FixedPointDollars  `json:"open_interest_notional_value_dollars,omitempty"`
+	Volume24h                        FixedPointCount    `json:"volume_24h,omitempty"`
+	Volume24hNotionalValueDollars    FixedPointDollars  `json:"volume_24h_notional_value_dollars,omitempty"`
+	Bid                              FixedPointDollars  `json:"bid,omitempty"`
+	Ask                              FixedPointDollars  `json:"ask,omitempty"`
+	SettlementMarkPrice              *TickerPrice       `json:"settlement_mark_price,omitempty"`
+	LiquidationMarkPrice             *TickerPrice       `json:"liquidation_mark_price,omitempty"`
+	ReferencePrice                   *TickerPrice       `json:"reference_price,omitempty"`
 }
 
 type GetMarginMarketsResponse struct {
@@ -80,14 +96,32 @@ type GetMarginMarketOrderbookResponse struct {
 	} `json:"orderbook"`
 }
 
+type BidAskDistributionHistorical struct {
+	Open  FixedPointDollars `json:"open"`
+	Low   FixedPointDollars `json:"low"`
+	High  FixedPointDollars `json:"high"`
+	Close FixedPointDollars `json:"close"`
+}
+
+// Price fields are nullable when the candle has no trades.
+type PriceDistributionHistorical struct {
+	Open     *FixedPointDollars `json:"open"`
+	Low      *FixedPointDollars `json:"low"`
+	High     *FixedPointDollars `json:"high"`
+	Close    *FixedPointDollars `json:"close"`
+	Mean     *FixedPointDollars `json:"mean"`
+	Previous *FixedPointDollars `json:"previous"`
+}
+
 type Candlestick struct {
-	EndPeriodTs int64 `json:"end_period_ts"`
-	// flexible OHLC fields as returned by API
-	YesBid   any `json:"yes_bid,omitempty"`
-	YesAsk   any `json:"yes_ask,omitempty"`
-	Price    any `json:"price,omitempty"`
-	Volume   any `json:"volume,omitempty"`
-	OpenInterest any `json:"open_interest,omitempty"`
+	EndPeriodTs                      int64                        `json:"end_period_ts"`
+	Bid                              BidAskDistributionHistorical `json:"bid"`
+	Ask                              BidAskDistributionHistorical `json:"ask"`
+	Price                            PriceDistributionHistorical  `json:"price"`
+	Volume                           FixedPointCount              `json:"volume"`
+	VolumeNotionalValueDollars       FixedPointDollars            `json:"volume_notional_value_dollars"`
+	OpenInterest                     FixedPointCount              `json:"open_interest"`
+	OpenInterestNotionalValueDollars FixedPointDollars            `json:"open_interest_notional_value_dollars"`
 }
 
 type GetMarginMarketCandlesticksResponse struct {
@@ -96,13 +130,13 @@ type GetMarginMarketCandlesticksResponse struct {
 }
 
 type MarginTrade struct {
-	TradeID   string            `json:"trade_id"`
-	Ticker    string            `json:"ticker"`
-	Count     FixedPointCount   `json:"count"`
-	Price     FixedPointDollars `json:"price"`
-	TakerSide string            `json:"taker_side"`
-	Ts        int64             `json:"ts,omitempty"`
-	CreatedTime string          `json:"created_time,omitempty"`
+	TradeID     string            `json:"trade_id"`
+	Ticker      string            `json:"ticker"`
+	Count       FixedPointCount   `json:"count"`
+	Price       FixedPointDollars `json:"price"`
+	TakerSide   string            `json:"taker_side"`
+	Ts          int64             `json:"ts,omitempty"`
+	CreatedTime string            `json:"created_time,omitempty"`
 }
 
 type GetMarginTradesResponse struct {
@@ -113,19 +147,19 @@ type GetMarginTradesResponse struct {
 // --- Orders ---
 
 type CreateMarginOrderRequest struct {
-	Ticker                   string            `json:"ticker"`
-	ClientOrderID            string            `json:"client_order_id"`
-	Side                     string            `json:"side"`
-	Count                    FixedPointCount   `json:"count"`
-	Price                    FixedPointDollars `json:"price"`
-	TimeInForce              string            `json:"time_in_force"`
-	SelfTradePreventionType  string            `json:"self_trade_prevention_type"`
-	ExpirationTime           *int64            `json:"expiration_time,omitempty"`
-	PostOnly                 *bool             `json:"post_only,omitempty"`
-	CancelOrderOnPause       *bool             `json:"cancel_order_on_pause,omitempty"`
-	ReduceOnly               *bool             `json:"reduce_only,omitempty"`
-	Subaccount               *int              `json:"subaccount,omitempty"`
-	OrderGroupID             string            `json:"order_group_id,omitempty"`
+	Ticker                  string            `json:"ticker"`
+	ClientOrderID           string            `json:"client_order_id"`
+	Side                    string            `json:"side"`
+	Count                   FixedPointCount   `json:"count"`
+	Price                   FixedPointDollars `json:"price"`
+	TimeInForce             string            `json:"time_in_force"`
+	SelfTradePreventionType string            `json:"self_trade_prevention_type"`
+	ExpirationTime          *int64            `json:"expiration_time,omitempty"`
+	PostOnly                *bool             `json:"post_only,omitempty"`
+	CancelOrderOnPause      *bool             `json:"cancel_order_on_pause,omitempty"`
+	ReduceOnly              *bool             `json:"reduce_only,omitempty"`
+	Subaccount              *int              `json:"subaccount,omitempty"`
+	OrderGroupID            string            `json:"order_group_id,omitempty"`
 }
 
 type CreateMarginOrderResponse struct {
@@ -192,13 +226,13 @@ type DecreaseMarginOrderRequest struct {
 // --- Portfolio ---
 
 type MarginSubaccountBalance struct {
-	Subaccount           int               `json:"subaccount"`
-	PositionValue        FixedPointDollars `json:"position_value"`
-	AccountEquity        FixedPointDollars `json:"account_equity"`
-	MaintenanceMargin    FixedPointDollars `json:"maintenance_margin"`
-	InitialMargin        FixedPointDollars `json:"initial_margin"`
-	RestingOrdersMargin  FixedPointDollars `json:"resting_orders_margin"`
-	AvailableBalance     FixedPointDollars `json:"available_balance"`
+	Subaccount          int               `json:"subaccount"`
+	PositionValue       FixedPointDollars `json:"position_value"`
+	AccountEquity       FixedPointDollars `json:"account_equity"`
+	MaintenanceMargin   FixedPointDollars `json:"maintenance_margin"`
+	InitialMargin       FixedPointDollars `json:"initial_margin"`
+	RestingOrdersMargin FixedPointDollars `json:"resting_orders_margin"`
+	AvailableBalance    FixedPointDollars `json:"available_balance"`
 }
 
 type GetMarginBalanceResponse struct {
@@ -207,15 +241,15 @@ type GetMarginBalanceResponse struct {
 }
 
 type MarginPosition struct {
-	Subaccount     int               `json:"subaccount"`
-	MarketTicker   string            `json:"market_ticker"`
-	Position       FixedPointCount   `json:"position"`
-	EntryPrice     FixedPointDollars `json:"entry_price"`
-	UnrealizedPnL  FixedPointDollars `json:"unrealized_pnl"`
-	MarginUsed     *FixedPointDollars `json:"margin_used,omitempty"`
-	Fees           FixedPointDollars `json:"fees"`
-	ROE            *float64          `json:"roe,omitempty"`
-	IsPortfolio    bool              `json:"is_portfolio"`
+	Subaccount    int                `json:"subaccount"`
+	MarketTicker  string             `json:"market_ticker"`
+	Position      FixedPointCount    `json:"position"`
+	EntryPrice    FixedPointDollars  `json:"entry_price"`
+	UnrealizedPnL FixedPointDollars  `json:"unrealized_pnl"`
+	MarginUsed    *FixedPointDollars `json:"margin_used,omitempty"`
+	Fees          FixedPointDollars  `json:"fees"`
+	ROE           *float64           `json:"roe,omitempty"`
+	IsPortfolio   bool               `json:"is_portfolio"`
 }
 
 type GetMarginPositionsResponse struct {
@@ -276,15 +310,15 @@ type ApplySubaccountTransferResponse struct {
 // --- Risk / fees / funding ---
 
 type GetMarginRiskResponse struct {
-	AccountLeverage         *float64          `json:"account_leverage,omitempty"`
-	TotalPositionNotional   FixedPointDollars `json:"total_position_notional"`
-	TotalMaintenanceMargin  FixedPointDollars `json:"total_maintenance_margin"`
-	Positions               []any             `json:"positions"`
+	AccountLeverage        *float64          `json:"account_leverage,omitempty"`
+	TotalPositionNotional  FixedPointDollars `json:"total_position_notional"`
+	TotalMaintenanceMargin FixedPointDollars `json:"total_maintenance_margin"`
+	Positions              []any             `json:"positions"`
 }
 
 type GetMarginRiskParametersResponse struct {
 	// flexible map of parameters
-	LiquidationThresholds any `json:"liquidation_thresholds,omitempty"`
+	LiquidationThresholds    any `json:"liquidation_thresholds,omitempty"`
 	InitialMarginMultipliers any `json:"initial_margin_multipliers,omitempty"`
 }
 
@@ -299,9 +333,9 @@ type GetMarginFeeTiersResponse struct {
 }
 
 type GetMarginFundingRateEstimateResponse struct {
-	Ticker              string  `json:"ticker,omitempty"`
+	Ticker               string `json:"ticker,omitempty"`
 	EstimatedFundingRate any    `json:"estimated_funding_rate,omitempty"`
-	NextFundingTimeMs   int64   `json:"next_funding_time_ms,omitempty"`
+	NextFundingTimeMs    int64  `json:"next_funding_time_ms,omitempty"`
 	// flexible
 }
 
@@ -325,16 +359,16 @@ type CreateOrderGroupRequest struct {
 }
 
 type CreateOrderGroupResponse struct {
-	OrderGroupID string `json:"order_group_id"`
-	Subaccount   int    `json:"subaccount"`
-	ExchangeIndex int   `json:"exchange_index"`
+	OrderGroupID  string `json:"order_group_id"`
+	Subaccount    int    `json:"subaccount"`
+	ExchangeIndex int    `json:"exchange_index"`
 }
 
 type OrderGroup struct {
-	OrderGroupID     string   `json:"id,omitempty"`
-	ContractsLimitFp FixedPointCount `json:"contracts_limit_fp,omitempty"`
-	IsAutoCancelEnabled bool  `json:"is_auto_cancel_enabled,omitempty"`
-	ExchangeIndex    int      `json:"exchange_index,omitempty"`
+	OrderGroupID        string          `json:"id,omitempty"`
+	ContractsLimitFp    FixedPointCount `json:"contracts_limit_fp,omitempty"`
+	IsAutoCancelEnabled bool            `json:"is_auto_cancel_enabled,omitempty"`
+	ExchangeIndex       int             `json:"exchange_index,omitempty"`
 }
 
 type GetOrderGroupsResponse struct {
@@ -343,9 +377,9 @@ type GetOrderGroupsResponse struct {
 
 type GetOrderGroupResponse struct {
 	IsAutoCancelEnabled bool            `json:"is_auto_cancel_enabled"`
-	ContractsLimitFp   FixedPointCount `json:"contracts_limit_fp,omitempty"`
-	Orders             []string        `json:"orders,omitempty"`
-	ExchangeIndex      int             `json:"exchange_index,omitempty"`
+	ContractsLimitFp    FixedPointCount `json:"contracts_limit_fp,omitempty"`
+	Orders              []string        `json:"orders,omitempty"`
+	ExchangeIndex       int             `json:"exchange_index,omitempty"`
 }
 
 type UpdateOrderGroupLimitRequest struct {

@@ -90,9 +90,9 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 
 	var (
 		createTicker, side, count, price, tif, stp, clientOrderID, orderGroupID string
-		expirationMs                                                           int64
-		postOnly, reduceOnly, cancelOnPause, dryRun                            bool
-		createSub                                                              int
+		expirationMs                                                            int64
+		postOnly, reduceOnly, cancelOnPause, dryRun                             bool
+		createSub                                                               int
 	)
 	create := &cobra.Command{
 		Use:   "create",
@@ -130,11 +130,10 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 				req.Subaccount = &createSub
 			}
 			if dryRun {
-				rt, err := opts.setup(false)
-				if err != nil {
-					return err
-				}
-				return rt.out.Print(req)
+				return printDryRun(opts, req)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
 			}
 			rt, err := opts.setup(true)
 			if err != nil {
@@ -169,6 +168,12 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 		Short: "Cancel an order",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if dryRun {
+				return printDryRun(opts, map[string]any{"action": "cancel", "order_id": args[0]})
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
 			rt, err := opts.setup(true)
 			if err != nil {
 				return err
@@ -181,6 +186,7 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 		},
 	}
 	cancel.Flags().IntVar(&cancelSubaccount, "subaccount", 0, "Subaccount")
+	cancel.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
 	cmd.AddCommand(cancel)
 
 	var amendTicker, amendSide, amendPrice, amendCount, amendClientID, amendNewClientID string
@@ -193,18 +199,25 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 			if amendTicker == "" || amendSide == "" || amendPrice == "" || amendCount == "" {
 				return fmt.Errorf("--ticker, --side, --price, and --count are required")
 			}
-			rt, err := opts.setup(true)
-			if err != nil {
-				return err
-			}
-			out, err := rt.client.AmendMarginOrder(ctx(), args[0], ptrInt(amendSubaccount, cmd.Flags().Changed("subaccount")), api.AmendMarginOrderRequest{
+			req := api.AmendMarginOrderRequest{
 				Ticker:               amendTicker,
 				Side:                 amendSide,
 				Price:                amendPrice,
 				Count:                amendCount,
 				ClientOrderID:        amendClientID,
 				UpdatedClientOrderID: amendNewClientID,
-			})
+			}
+			if dryRun {
+				return printDryRun(opts, req)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
+			rt, err := opts.setup(true)
+			if err != nil {
+				return err
+			}
+			out, err := rt.client.AmendMarginOrder(ctx(), args[0], ptrInt(amendSubaccount, cmd.Flags().Changed("subaccount")), req)
 			if err != nil {
 				return err
 			}
@@ -218,6 +231,7 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 	amend.Flags().StringVar(&amendClientID, "client-order-id", "", "Original client order id")
 	amend.Flags().StringVar(&amendNewClientID, "updated-client-order-id", "", "New client order id")
 	amend.Flags().IntVar(&amendSubaccount, "subaccount", 0, "Subaccount")
+	amend.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
 	cmd.AddCommand(amend)
 
 	var reduceBy, reduceTo string
@@ -230,16 +244,22 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 			if (reduceBy == "" && reduceTo == "") || (reduceBy != "" && reduceTo != "") {
 				return fmt.Errorf("exactly one of --reduce-by or --reduce-to is required")
 			}
-			rt, err := opts.setup(true)
-			if err != nil {
-				return err
-			}
 			req := api.DecreaseMarginOrderRequest{}
 			if reduceBy != "" {
 				req.ReduceBy = &reduceBy
 			}
 			if reduceTo != "" {
 				req.ReduceTo = &reduceTo
+			}
+			if dryRun {
+				return printDryRun(opts, req)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
+			rt, err := opts.setup(true)
+			if err != nil {
+				return err
 			}
 			out, err := rt.client.DecreaseMarginOrder(ctx(), args[0], ptrInt(decreaseSubaccount, cmd.Flags().Changed("subaccount")), req)
 			if err != nil {
@@ -251,6 +271,7 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 	decrease.Flags().StringVar(&reduceBy, "reduce-by", "", "Contracts to reduce by")
 	decrease.Flags().StringVar(&reduceTo, "reduce-to", "", "Contracts to reduce to")
 	decrease.Flags().IntVar(&decreaseSubaccount, "subaccount", 0, "Subaccount")
+	decrease.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
 	cmd.AddCommand(decrease)
 
 	return cmd

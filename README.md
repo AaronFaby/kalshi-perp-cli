@@ -107,6 +107,8 @@ kalshi-perp stream \
   --reconnect
 ```
 
+`orderbook_delta` requires at least one `--ticker`.
+
 ## Configuration
 
 Resolution order (highest wins):
@@ -160,7 +162,7 @@ Global flags: `--env`, `--api-key`, `--private-key`, `--format table|json|jsonl`
 
 ```bash
 kalshi-perp transfer exchange \
-  --source <instance> --destination <instance> \
+  --source event_contract --destination margined \
   --amount-dollars 10.00
 ```
 

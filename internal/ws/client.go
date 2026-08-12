@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,8 +33,27 @@ type SubscribeParams struct {
 	Tickers  []string
 }
 
+const (
+	initialWSBackoff = time.Second
+	maxWSBackoff     = 30 * time.Second
+	wsPingInterval   = 15 * time.Second
+	wsPingWait       = 10 * time.Second
+)
+
+func nextWSBackoff(cur time.Duration) time.Duration {
+	next := cur * 2
+	if next > maxWSBackoff {
+		return maxWSBackoff
+	}
+	return next
+}
+
 // Run connects, subscribes, and writes messages to emit until ctx is done.
 func (c *Client) Run(ctx context.Context, params SubscribeParams, emit func(Message) error) error {
+	return c.runSession(ctx, params, emit, nil)
+}
+
+func (c *Client) runSession(ctx context.Context, params SubscribeParams, emit func(Message) error, onReady func()) error {
 	headers, err := auth.Headers(c.KeyID, c.PrivateKey, http.MethodGet, wsSignPath(c.URL))
 	if err != nil {
 		return err
@@ -58,6 +78,13 @@ func (c *Client) Run(ctx context.Context, params SubscribeParams, emit func(Mess
 	if err := c.subscribe(ctx, conn, &msgID, params); err != nil {
 		return err
 	}
+	if onReady != nil {
+		onReady()
+	}
+
+	sessionCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	go pingWatchdog(sessionCtx, cancel, conn)
 
 	for {
 		select {
@@ -66,10 +93,13 @@ func (c *Client) Run(ctx context.Context, params SubscribeParams, emit func(Mess
 		default:
 		}
 
-		_, data, err := conn.Read(ctx)
+		_, data, err := conn.Read(sessionCtx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
+			}
+			if cause := context.Cause(sessionCtx); cause != nil && !errors.Is(cause, context.Canceled) {
+				return cause
 			}
 			if err == io.EOF {
 				return fmt.Errorf("ws closed")
@@ -79,7 +109,6 @@ func (c *Client) Run(ctx context.Context, params SubscribeParams, emit func(Mess
 
 		var msg Message
 		if err := json.Unmarshal(data, &msg); err != nil {
-			// emit raw
 			if err := emit(Message{"raw": string(data)}); err != nil {
 				return err
 			}
@@ -87,6 +116,25 @@ func (c *Client) Run(ctx context.Context, params SubscribeParams, emit func(Mess
 		}
 		if err := emit(msg); err != nil {
 			return err
+		}
+	}
+}
+
+func pingWatchdog(ctx context.Context, cancel context.CancelCauseFunc, conn *websocket.Conn) {
+	t := time.NewTicker(wsPingInterval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			pingCtx, pingCancel := context.WithTimeout(ctx, wsPingWait)
+			err := conn.Ping(pingCtx)
+			pingCancel()
+			if err != nil && ctx.Err() == nil {
+				cancel(fmt.Errorf("ws idle ping: %w", err))
+				return
+			}
 		}
 	}
 }
@@ -129,9 +177,13 @@ func BuildSubscribeMessage(id int64, params SubscribeParams) ([]byte, error) {
 
 // RunWithReconnect loops Run with exponential backoff when reconnect is true.
 func (c *Client) RunWithReconnect(ctx context.Context, params SubscribeParams, reconnect bool, emit func(Message) error) error {
-	backoff := time.Second
+	backoff := initialWSBackoff
 	for {
-		err := c.Run(ctx, params, emit)
+		ready := false
+		err := c.runSession(ctx, params, emit, func() { ready = true })
+		if ready {
+			backoff = initialWSBackoff
+		}
 		if err == nil || ctx.Err() != nil {
 			return err
 		}
@@ -146,12 +198,7 @@ func (c *Client) RunWithReconnect(ctx context.Context, params SubscribeParams, r
 			return ctx.Err()
 		case <-time.After(backoff):
 		}
-		if backoff < 30*time.Second {
-			backoff *= 2
-			if backoff > 30*time.Second {
-				backoff = 30 * time.Second
-			}
-		}
+		backoff = nextWSBackoff(backoff)
 	}
 }
 

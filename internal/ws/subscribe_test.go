@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBuildSubscribeMessage_ChannelsAndTickers(t *testing.T) {
@@ -75,16 +76,31 @@ func TestWsSignPath_NoIdleTimeoutInSource(t *testing.T) {
 }
 
 func TestRunSourceUsesParentContextForReads(t *testing.T) {
-	// Regression: idle streams must not use a per-read 60s timeout (closes quiet connections).
+	// Regression: idle streams must not use a per-read timeout (closes quiet connections).
 	src, err := os.ReadFile("client.go")
 	if err != nil {
-		// when tests run from package dir, path is relative to package
 		t.Fatal(err)
 	}
-	if strings.Contains(string(src), "WithTimeout") {
+	body := string(src)
+	if strings.Contains(body, "conn.Read(context.WithTimeout") {
 		t.Fatal("ws client must not impose per-read WithTimeout")
 	}
-	if !strings.Contains(string(src), "conn.Read(ctx)") {
-		t.Fatal("expected conn.Read(ctx) for parent-context reads")
+	if !strings.Contains(body, "conn.Read(sessionCtx)") {
+		t.Fatal("expected session-context reads")
+	}
+	if !strings.Contains(body, "conn.Ping(") {
+		t.Fatal("expected idle ping watchdog")
+	}
+}
+
+func TestNextWSBackoffResetsAndCaps(t *testing.T) {
+	if got := nextWSBackoff(time.Second); got != 2*time.Second {
+		t.Fatal(got)
+	}
+	if got := nextWSBackoff(20 * time.Second); got != maxWSBackoff {
+		t.Fatal(got)
+	}
+	if got := nextWSBackoff(maxWSBackoff); got != maxWSBackoff {
+		t.Fatal(got)
 	}
 }

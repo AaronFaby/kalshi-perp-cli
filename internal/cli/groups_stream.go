@@ -224,10 +224,6 @@ func newStreamCmd(opts *RootOptions) *cobra.Command {
 Channels: orderbook_delta, ticker, trade, fill, user_orders, order_group_updates
 Timestamps are Unix milliseconds (*_ms fields).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			rt, err := opts.setup(true)
-			if err != nil {
-				return err
-			}
 			chList := splitCSV(channels)
 			if len(chList) == 0 {
 				return fmt.Errorf("provide --channels")
@@ -236,6 +232,13 @@ Timestamps are Unix milliseconds (*_ms fields).`,
 				if !validChannel(ch) {
 					return fmt.Errorf("unknown channel %q", ch)
 				}
+				if channelRequiresMarket(ch) && len(tickers) == 0 {
+					return fmt.Errorf("channel %s requires --ticker", ch)
+				}
+			}
+			rt, err := opts.setup(true)
+			if err != nil {
+				return err
 			}
 
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

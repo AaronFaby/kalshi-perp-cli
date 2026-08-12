@@ -28,9 +28,7 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 				Ticker: ticker,
 				Status: status,
 				Cursor: cursor,
-			}
-			if cmd.Flags().Changed("limit") {
-				p.Limit = &limit
+				Limit:  &limit,
 			}
 			if cmd.Flags().Changed("min-ts") {
 				p.MinTs = &minTs
@@ -43,13 +41,19 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 			}
 
 			var allOrders []api.MarginOrder
+			prev, page := cursor, 0
 			for {
+				page++
 				out, err := rt.client.GetMarginOrders(ctx(), p)
 				if err != nil {
 					return err
 				}
 				allOrders = append(allOrders, out.Orders...)
-				if !all || out.Cursor == "" {
+				next, err := continueCursor(all, prev, out.Cursor, page)
+				if err != nil {
+					return err
+				}
+				if next == "" {
 					rows := make([][]string, 0, len(allOrders))
 					for _, o := range allOrders {
 						rows = append(rows, []string{o.OrderID, o.Ticker, o.Side, o.Price, o.FillCount, o.RemainingCount, o.ClientOrderID})
@@ -57,7 +61,8 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 					payload := map[string]any{"orders": allOrders, "cursor": out.Cursor}
 					return rt.out.PrintTable([]string{"ORDER_ID", "TICKER", "SIDE", "PRICE", "FILL", "REMAIN", "CLIENT_ID"}, rows, payload)
 				}
-				p.Cursor = out.Cursor
+				prev = next
+				p.Cursor = next
 			}
 		},
 	}
@@ -100,6 +105,21 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if createTicker == "" || side == "" || count == "" || price == "" || tif == "" || stp == "" {
 				return fmt.Errorf("--ticker, --side, --count, --price, --tif, and --stp are required")
+			}
+			if err := validateSide(side); err != nil {
+				return err
+			}
+			if err := validateTIF(tif); err != nil {
+				return err
+			}
+			if err := validateSTP(stp); err != nil {
+				return err
+			}
+			if err := validateFixedPoint("count", count); err != nil {
+				return err
+			}
+			if err := validateFixedPoint("price", price); err != nil {
+				return err
 			}
 			if clientOrderID == "" {
 				clientOrderID = uuid.NewString()
@@ -198,6 +218,15 @@ func newOrdersCmd(opts *RootOptions) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if amendTicker == "" || amendSide == "" || amendPrice == "" || amendCount == "" {
 				return fmt.Errorf("--ticker, --side, --price, and --count are required")
+			}
+			if err := validateSide(amendSide); err != nil {
+				return err
+			}
+			if err := validateFixedPoint("count", amendCount); err != nil {
+				return err
+			}
+			if err := validateFixedPoint("price", amendPrice); err != nil {
+				return err
 			}
 			req := api.AmendMarginOrderRequest{
 				Ticker:               amendTicker,

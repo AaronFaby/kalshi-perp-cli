@@ -75,19 +75,37 @@ func TestProdDryRunDoesNotRequireConfirm(t *testing.T) {
 		"--stp", "maker",
 		"--dry-run",
 	})
-	var errBuf bytes.Buffer
+	var out, errBuf bytes.Buffer
+	root.SetOut(&out)
 	root.SetErr(&errBuf)
-	stdout := captureStdout(t, func() {
-		if err := root.Execute(); err != nil {
-			t.Fatal(err)
-		}
-	})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
 	var body map[string]any
-	if err := json.Unmarshal([]byte(stdout), &body); err != nil {
-		t.Fatalf("json: %v\nstdout=%q stderr=%q", err, stdout, errBuf.String())
+	if err := json.Unmarshal(out.Bytes(), &body); err != nil {
+		t.Fatalf("json: %v\nstdout=%q stderr=%q", err, out.String(), errBuf.String())
 	}
 	if body["ticker"] != "KXBTCPERP1" {
 		t.Fatalf("%v", body)
+	}
+}
+
+func TestTransferExchangeRejectsInvalidInstance(t *testing.T) {
+	_, err := isolatedRoot(t,
+		"transfer", "exchange",
+		"--source", "margin",
+		"--destination", "margined",
+		"--amount-dollars", "1.00",
+	)
+	if err == nil || !strings.Contains(err.Error(), "event_contract") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestStreamOrderbookRequiresTicker(t *testing.T) {
+	_, err := isolatedRoot(t, "stream", "--channels", "orderbook_delta")
+	if err == nil || !strings.Contains(err.Error(), "--ticker") {
+		t.Fatalf("got %v", err)
 	}
 }
 

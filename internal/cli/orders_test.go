@@ -3,31 +3,9 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"io"
-	"os"
 	"strings"
 	"testing"
 )
-
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = w
-	done := make(chan string)
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, r)
-		done <- buf.String()
-	}()
-	fn()
-	_ = w.Close()
-	os.Stdout = old
-	return <-done
-}
 
 func TestOrdersCreateDryRun_EmitsRequiredJSONFields(t *testing.T) {
 	root := NewRoot()
@@ -42,20 +20,19 @@ func TestOrdersCreateDryRun_EmitsRequiredJSONFields(t *testing.T) {
 		"--dry-run",
 		"--format", "json",
 	})
-	var errBuf bytes.Buffer
+	var out, errBuf bytes.Buffer
+	root.SetOut(&out)
 	root.SetErr(&errBuf)
-	stdout := captureStdout(t, func() {
-		if err := root.Execute(); err != nil {
-			t.Fatal(err)
-		}
-	})
+	if err := root.Execute(); err != nil {
+		t.Fatal(err)
+	}
 	var body map[string]any
-	if err := json.Unmarshal([]byte(stdout), &body); err != nil {
-		t.Fatalf("json: %v\nstdout=%q stderr=%q", err, stdout, errBuf.String())
+	if err := json.Unmarshal(out.Bytes(), &body); err != nil {
+		t.Fatalf("json: %v\nstdout=%q stderr=%q", err, out.String(), errBuf.String())
 	}
 	for _, k := range []string{"ticker", "client_order_id", "side", "count", "price", "time_in_force", "self_trade_prevention_type"} {
 		if _, ok := body[k]; !ok {
-			t.Errorf("missing %s in %s", k, stdout)
+			t.Errorf("missing %s in %s", k, out.String())
 		}
 	}
 	if body["ticker"] != "KXBTCPERP1" || body["side"] != "bid" {
@@ -84,6 +61,27 @@ func TestOrdersCreate_RequiresFlags(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "required") {
 		t.Fatal(err)
+	}
+}
+
+func TestOrdersCreate_RejectsInvalidEnums(t *testing.T) {
+	root := NewRoot()
+	root.SetArgs([]string{
+		"orders", "create",
+		"--ticker", "X",
+		"--side", "buy",
+		"--count", "1.00",
+		"--price", "0.50",
+		"--tif", "gtc",
+		"--stp", "maker",
+		"--dry-run",
+	})
+	var errBuf bytes.Buffer
+	root.SetErr(&errBuf)
+	root.SetOut(&errBuf)
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "bid or ask") {
+		t.Fatalf("got %v", err)
 	}
 }
 

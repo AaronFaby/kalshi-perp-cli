@@ -21,16 +21,6 @@ func (e ErrorResponse) Error() string {
 type FixedPointCount = string
 type FixedPointDollars = string
 
-// --- Account ---
-
-type GetAccountAPILimitsResponse struct {
-	// Schema may evolve; keep flexible extras via raw if needed.
-	UsageLevel string `json:"usage_level,omitempty"`
-	// OpenAPI: GetAccountApiLimitsResponse — capture common fields loosely.
-	Grants any            `json:"grants,omitempty"`
-	Raw    map[string]any `json:"-"`
-}
-
 // --- Exchange ---
 
 type ExchangeStatus struct {
@@ -287,11 +277,6 @@ type IntraExchangeInstanceTransferRequest struct {
 	DestinationExchangeShard *int   `json:"destination_exchange_shard,omitempty"`
 }
 
-type IntraExchangeInstanceTransferResponse struct {
-	TransferID string `json:"transfer_id,omitempty"`
-	// flexible
-}
-
 type CreateSubaccountResponse struct {
 	SubaccountNumber int `json:"subaccount_number"`
 }
@@ -301,52 +286,6 @@ type ApplySubaccountTransferRequest struct {
 	FromSubaccount   int    `json:"from_subaccount"`
 	ToSubaccount     int    `json:"to_subaccount"`
 	AmountCents      int64  `json:"amount_cents"`
-}
-
-type ApplySubaccountTransferResponse struct {
-	// flexible
-}
-
-// --- Risk / fees / funding ---
-
-type GetMarginRiskResponse struct {
-	AccountLeverage        *float64          `json:"account_leverage,omitempty"`
-	TotalPositionNotional  FixedPointDollars `json:"total_position_notional"`
-	TotalMaintenanceMargin FixedPointDollars `json:"total_maintenance_margin"`
-	Positions              []any             `json:"positions"`
-}
-
-type GetMarginRiskParametersResponse struct {
-	// flexible map of parameters
-	LiquidationThresholds    any `json:"liquidation_thresholds,omitempty"`
-	InitialMarginMultipliers any `json:"initial_margin_multipliers,omitempty"`
-}
-
-type GetMarginNotionalRiskLimitResponse struct {
-	NotionalRiskLimit FixedPointDollars `json:"notional_risk_limit,omitempty"`
-	// flexible
-}
-
-type GetMarginFeeTiersResponse struct {
-	FeeTiers map[string]string `json:"fee_tiers,omitempty"`
-	// some responses may use a different shape
-}
-
-type GetMarginFundingRateEstimateResponse struct {
-	Ticker               string `json:"ticker,omitempty"`
-	EstimatedFundingRate any    `json:"estimated_funding_rate,omitempty"`
-	NextFundingTimeMs    int64  `json:"next_funding_time_ms,omitempty"`
-	// flexible
-}
-
-type GetMarginHistoricalFundingRatesResponse struct {
-	FundingRates []any  `json:"funding_rates,omitempty"`
-	Cursor       string `json:"cursor,omitempty"`
-}
-
-type GetMarginFundingHistoryResponse struct {
-	FundingHistory []any  `json:"funding_history,omitempty"`
-	Cursor         string `json:"cursor,omitempty"`
 }
 
 // --- Order groups ---

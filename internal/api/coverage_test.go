@@ -104,6 +104,7 @@ func TestCLICommandTreeCoversNonFCMOperations(t *testing.T) {
 		"client-transfer-id",
 		"dry-run",
 		"confirm-prod",
+		"event_contract",
 	}
 	cliDir := filepath.Join(repoRoot(t), "internal", "cli")
 	entries, err := os.ReadDir(cliDir)

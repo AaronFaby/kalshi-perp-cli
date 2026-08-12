@@ -2,8 +2,11 @@ package api
 
 import (
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +24,57 @@ func testClient(t *testing.T, handler http.HandlerFunc) *Client {
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	return New(srv.URL+"/trade-api/v2", "test-key-id", key, 5*time.Second)
+}
+
+func TestDo_SignsTimestampMethodAndFullPath(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := r.Header.Get("KALSHI-ACCESS-TIMESTAMP")
+		sig := r.Header.Get("KALSHI-ACCESS-SIGNATURE")
+		raw, err := base64.StdEncoding.DecodeString(sig)
+		if err != nil {
+			t.Fatal(err)
+		}
+		message := ts + "GET" + "/trade-api/v2/margin/enabled"
+		hash := sha256.Sum256([]byte(message))
+		if err := rsa.VerifyPSS(&key.PublicKey, crypto.SHA256, hash[:], raw, &rsa.PSSOptions{
+			SaltLength: rsa.PSSSaltLengthEqualsHash,
+			Hash:       crypto.SHA256,
+		}); err != nil {
+			t.Fatalf("signed message was not timestamp+METHOD+/trade-api/v2/...: %v", err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"enabled": true})
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL+"/trade-api/v2", "test-key-id", key, 5*time.Second)
+	if err := c.Get(context.Background(), "/margin/enabled", nil, &GetMarginEnabledResponse{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDo_RefusesRedirects(t *testing.T) {
+	var followed bool
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/stolen") {
+			followed = true
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.Redirect(w, r, "/trade-api/v2/stolen", http.StatusFound)
+	})
+	err := c.Get(context.Background(), "/margin/enabled", nil, &GetMarginEnabledResponse{})
+	if err == nil {
+		t.Fatal("expected redirect error")
+	}
+	if followed {
+		t.Fatal("followed redirect")
+	}
+	if !strings.Contains(err.Error(), "redirect") {
+		t.Fatal(err)
+	}
 }
 
 func TestDo_SignsAndGETs(t *testing.T) {

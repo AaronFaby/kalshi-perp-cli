@@ -39,12 +39,12 @@ Never serialize money/qty as `float64` in API JSON.
 
 ## Transfer amount
 
-`POST /portfolio/intra_exchange_instance_transfer` uses `amount` in **centicents** (1 dollar = 10_000 centicents). CLI accepts exactly one of `--amount-centicents` or `--amount-dollars`.
+`POST /portfolio/intra_exchange_instance_transfer` uses `amount` in **centicents** (1 dollar = 10_000 centicents). CLI accepts exactly one of `--amount-centicents` or `--amount-dollars`. `source`/`destination` are `event_contract` or `margined`.
 
 ## Pagination
 
 - Query: `limit`, `cursor`
-- CLI: `--limit`, `--cursor`, `--all` (opt-in auto-follow)
+- CLI: `--limit` (default 100, always sent), `--cursor`, `--all` (opt-in auto-follow; stops on a repeated cursor or after 100 pages)
 
 ## Order create required fields
 
@@ -59,6 +59,7 @@ STP: `taker_at_cross` | `maker`
 - Server pings every ~10s (`heartbeat`); client must pong.
 - Timestamps are Unix ms (`*_ms`), not RFC3339.
 - Channels: `orderbook_delta`, `ticker`, `trade`, `fill`, `user_orders`, `order_group_updates`.
+- `orderbook_delta` requires `--ticker`.
 
 ## Output
 

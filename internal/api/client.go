@@ -32,6 +32,9 @@ func New(baseURL, keyID string, privateKey *rsa.PrivateKey, timeout time.Duratio
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
 			Timeout: timeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return fmt.Errorf("refusing redirect to %s", req.URL)
+			},
 		},
 		KeyID:      keyID,
 		PrivateKey: privateKey,

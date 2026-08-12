@@ -104,7 +104,7 @@ func newMarketsCmd(opts *RootOptions) *cobra.Command {
 	var limit int
 	var cursor string
 	var minTs, maxTs int64
-	var limitSet, minSet, maxSet bool
+	var all bool
 	trades := &cobra.Command{
 		Use:   "trades <ticker>",
 		Short: "Public trades for a market",
@@ -114,30 +114,44 @@ func newMarketsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			limitSet = cmd.Flags().Changed("limit")
-			minSet = cmd.Flags().Changed("min-ts")
-			maxSet = cmd.Flags().Changed("max-ts")
-			out, err := rt.client.GetMarginTrades(ctx(), api.TradesParams{
+			p := api.TradesParams{
 				Ticker: args[0],
-				Limit:  ptrInt(limit, limitSet),
+				Limit:  &limit,
 				Cursor: cursor,
-				MinTs:  ptrInt64(minTs, minSet),
-				MaxTs:  ptrInt64(maxTs, maxSet),
-			})
-			if err != nil {
-				return err
+				MinTs:  ptrInt64(minTs, cmd.Flags().Changed("min-ts")),
+				MaxTs:  ptrInt64(maxTs, cmd.Flags().Changed("max-ts")),
 			}
-			rows := make([][]string, 0, len(out.Trades))
-			for _, tr := range out.Trades {
-				rows = append(rows, []string{tr.TradeID, tr.Ticker, tr.TakerSide, tr.Price, tr.Count})
+			var allTrades []api.MarginTrade
+			prev, page := cursor, 0
+			for {
+				page++
+				out, err := rt.client.GetMarginTrades(ctx(), p)
+				if err != nil {
+					return err
+				}
+				allTrades = append(allTrades, out.Trades...)
+				next, err := continueCursor(all, prev, out.Cursor, page)
+				if err != nil {
+					return err
+				}
+				if next == "" {
+					rows := make([][]string, 0, len(allTrades))
+					for _, tr := range allTrades {
+						rows = append(rows, []string{tr.TradeID, tr.Ticker, tr.TakerSide, tr.Price, tr.Count})
+					}
+					payload := map[string]any{"trades": allTrades, "cursor": out.Cursor}
+					return rt.out.PrintTable([]string{"TRADE_ID", "TICKER", "SIDE", "PRICE", "COUNT"}, rows, payload)
+				}
+				prev = next
+				p.Cursor = next
 			}
-			return rt.out.PrintTable([]string{"TRADE_ID", "TICKER", "SIDE", "PRICE", "COUNT"}, rows, out)
 		},
 	}
 	trades.Flags().IntVar(&limit, "limit", 100, "Page size")
 	trades.Flags().StringVar(&cursor, "cursor", "", "Pagination cursor")
 	trades.Flags().Int64Var(&minTs, "min-ts", 0, "Min unix ts")
 	trades.Flags().Int64Var(&maxTs, "max-ts", 0, "Max unix ts")
+	trades.Flags().BoolVar(&all, "all", false, "Follow cursors until exhausted")
 	cmd.AddCommand(trades)
 
 	return cmd

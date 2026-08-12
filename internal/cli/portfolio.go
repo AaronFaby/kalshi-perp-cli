@@ -109,10 +109,7 @@ func newFillsCmd(opts *RootOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := api.FillsParams{Cursor: cursor}
-			if cmd.Flags().Changed("limit") {
-				p.Limit = &limit
-			}
+			p := api.FillsParams{Cursor: cursor, Limit: &limit}
 			if cmd.Flags().Changed("subaccount") {
 				p.Subaccount = &subaccount
 			}
@@ -123,13 +120,19 @@ func newFillsCmd(opts *RootOptions) *cobra.Command {
 				p.MaxTs = &maxTs
 			}
 			var allFills []api.MarginFill
+			prev, page := cursor, 0
 			for {
+				page++
 				out, err := rt.client.GetMarginFills(ctx(), p)
 				if err != nil {
 					return err
 				}
 				allFills = append(allFills, out.Fills...)
-				if !all || out.Cursor == "" {
+				next, err := continueCursor(all, prev, out.Cursor, page)
+				if err != nil {
+					return err
+				}
+				if next == "" {
 					rows := make([][]string, 0, len(allFills))
 					for _, f := range allFills {
 						rows = append(rows, []string{
@@ -143,7 +146,8 @@ func newFillsCmd(opts *RootOptions) *cobra.Command {
 						rows, payload,
 					)
 				}
-				p.Cursor = out.Cursor
+				prev = next
+				p.Cursor = next
 			}
 		},
 	}
@@ -332,7 +336,13 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 		Long:  "POST /portfolio/intra_exchange_instance_transfer. Amount is in centicents (1 USD = 10000). May be unavailable until production rollout.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if source == "" || dest == "" {
-				return fmt.Errorf("--source and --destination are required (exchange instance names)")
+				return fmt.Errorf("--source and --destination are required (event_contract or margined)")
+			}
+			if err := validateExchangeInstance("source", source); err != nil {
+				return err
+			}
+			if err := validateExchangeInstance("destination", dest); err != nil {
+				return err
 			}
 			if cmd.Flags().Changed("amount-centicents") == (amountDollars != "") {
 				return fmt.Errorf("provide exactly one of --amount-centicents or --amount-dollars")
@@ -376,8 +386,8 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 			return rt.out.Print(out)
 		},
 	}
-	exchange.Flags().StringVar(&source, "source", "", "Source exchange instance (required)")
-	exchange.Flags().StringVar(&dest, "destination", "", "Destination exchange instance (required)")
+	exchange.Flags().StringVar(&source, "source", "", "Source instance: event_contract|margined (required)")
+	exchange.Flags().StringVar(&dest, "destination", "", "Destination instance: event_contract|margined (required)")
 	exchange.Flags().Int64Var(&amountCenticents, "amount-centicents", 0, "Amount in centicents (1 USD = 10000)")
 	exchange.Flags().StringVar(&amountDollars, "amount-dollars", "", "Amount in dollars (converted to centicents)")
 	exchange.Flags().IntVar(&srcShard, "source-shard", 0, "Source shard")

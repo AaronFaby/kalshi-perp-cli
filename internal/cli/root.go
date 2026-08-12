@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -28,6 +29,8 @@ type RootOptions struct {
 	TimeoutSec     int
 	ConfigPath     string
 	Verbose        bool
+	stdout         io.Writer
+	stderr         io.Writer
 }
 
 // NewRoot builds the kalshi-perp command tree.
@@ -52,6 +55,10 @@ func NewRoot() *cobra.Command {
 	root.PersistentFlags().StringVar(&opts.ConfigPath, "config", "", "Config file path")
 	root.PersistentFlags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Log request method/path/status to stderr")
 	root.PersistentFlags().Bool(confirmProdFlag, false, "Required to send mutating requests when targeting production")
+	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		opts.stdout = cmd.OutOrStdout()
+		opts.stderr = cmd.ErrOrStderr()
+	}
 
 	root.AddCommand(newVersionCmd())
 	root.AddCommand(newConfigCmd(opts))
@@ -110,9 +117,16 @@ func (opts *RootOptions) setup(needAuth bool) (*runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	out := output.New(cfg.Format)
+	if opts.stdout != nil {
+		out.Out = opts.stdout
+	}
+	if opts.stderr != nil {
+		out.Err = opts.stderr
+	}
 	rt := &runtime{
 		cfg: cfg,
-		out: output.New(cfg.Format),
+		out: out,
 	}
 	if !needAuth {
 		return rt, nil
@@ -144,13 +158,6 @@ func ctx() context.Context {
 	return context.Background()
 }
 
-func exitErr(err error) error {
-	if err == nil {
-		return nil
-	}
-	return err
-}
-
 func ptrInt(v int, set bool) *int {
 	if !set {
 		return nil
@@ -164,5 +171,3 @@ func ptrInt64(v int64, set bool) *int64 {
 	}
 	return &v
 }
-
-func boolPtr(v bool) *bool { return &v }

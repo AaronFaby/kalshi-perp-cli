@@ -9,6 +9,8 @@
 
 CLI: `--env demo|prod` (default `demo`), overrides `--base-url` / `--ws-url`.
 
+Mutating commands against production (`--env prod` or the production REST host) require `--confirm-prod` and print a warning naming the host. `--dry-run` skips that check.
+
 ## Config resolution (highest wins)
 
 1. Flags: `--api-key`, `--private-key`, `--env`
@@ -37,7 +39,7 @@ Never serialize money/qty as `float64` in API JSON.
 
 ## Transfer amount
 
-`POST /portfolio/intra_exchange_instance_transfer` uses `amount` in **centicents** (1 dollar = 10_000 centicents). CLI accepts `--amount-dollars` and converts.
+`POST /portfolio/intra_exchange_instance_transfer` uses `amount` in **centicents** (1 dollar = 10_000 centicents). CLI accepts exactly one of `--amount-centicents` or `--amount-dollars`.
 
 ## Pagination
 

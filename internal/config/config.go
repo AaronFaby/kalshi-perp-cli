@@ -190,6 +190,15 @@ func DefaultWSURL(env string) string {
 	return "wss://external-api-margin-ws.demo.kalshi.co/trade-api/ws/v2/margin"
 }
 
+// IsProduction reports whether requests target the live exchange.
+// Env=prod always counts, as does an explicit production REST host override.
+func (c Config) IsProduction() bool {
+	if strings.EqualFold(strings.TrimSpace(c.Env), EnvProd) {
+		return true
+	}
+	return strings.Contains(c.BaseURL, "://external-api.kalshi.com/")
+}
+
 // SampleYAML is written by `config init`.
 func SampleYAML() string {
 	return `# Kalshi Perp CLI configuration

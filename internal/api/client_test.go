@@ -270,6 +270,35 @@ func TestOrderGroupRequestsUseSubaccountAndDecodeDetails(t *testing.T) {
 	}
 }
 
+func TestGetMarginMarket_KeepsBookAndMarks(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"market":{"ticker":"X","title":"T","status":"active","contract_size":"1.000000","tick_size":"0.01","fractional_trading_enabled":true,"exchange_index":1,"bid":"1.00","ask":"1.01","settlement_mark_price":{"price":"1.005","ts_ms":9}}}`))
+	})
+	out, err := c.GetMarginMarket(context.Background(), "X")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Market.Bid != "1.00" || out.Market.Ask != "1.01" || out.Market.SettlementMarkPrice == nil || out.Market.SettlementMarkPrice.Price != "1.005" {
+		t.Fatalf("%+v", out.Market)
+	}
+}
+
+func TestGetMarginMarketCandlesticks_KeepsBidAskOHLC(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ticker":"X","candlesticks":[{"end_period_ts":1,"bid":{"open":"1","low":"1","high":"1","close":"1"},"ask":{"open":"2","low":"2","high":"2","close":"2"},"price":{"open":"1.5","low":"1.5","high":"1.5","close":"1.5","mean":"1.5","previous":"1.4"},"volume":"3.00","volume_notional_value_dollars":"4.00","open_interest":"5.00","open_interest_notional_value_dollars":"6.00"}]}`))
+	})
+	out, err := c.GetMarginMarketCandlesticks(context.Background(), "X", CandlesParams{StartTs: 1, EndTs: 2, PeriodInterval: 60})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Candlesticks) != 1 || out.Candlesticks[0].Bid.Close != "1" || out.Candlesticks[0].Ask.Close != "2" {
+		t.Fatalf("%+v", out)
+	}
+	if out.Candlesticks[0].VolumeNotionalValueDollars != "4.00" || out.Candlesticks[0].OpenInterestNotionalValueDollars != "6.00" {
+		t.Fatalf("%+v", out.Candlesticks[0])
+	}
+}
+
 func TestGetMarginBalanceCanRequestAvailableBalance(t *testing.T) {
 	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("compute_available_balance") != "true" {

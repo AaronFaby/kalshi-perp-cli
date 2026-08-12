@@ -325,6 +325,7 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 	var amountCenticents int64
 	var amountDollars string
 	var srcShard, dstShard int
+	var dryRun bool
 	exchange := &cobra.Command{
 		Use:   "exchange",
 		Short: "Transfer between event-contract and margin balances (amount in centicents or --amount-dollars)",
@@ -332,6 +333,9 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if source == "" || dest == "" {
 				return fmt.Errorf("--source and --destination are required (exchange instance names)")
+			}
+			if cmd.Flags().Changed("amount-centicents") == (amountDollars != "") {
+				return fmt.Errorf("provide exactly one of --amount-centicents or --amount-dollars")
 			}
 			amount := amountCenticents
 			if amountDollars != "" {
@@ -342,11 +346,7 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 				amount = c
 			}
 			if amount <= 0 {
-				return fmt.Errorf("provide --amount-centicents or --amount-dollars")
-			}
-			rt, err := opts.setup(true)
-			if err != nil {
-				return err
+				return fmt.Errorf("amount must be positive")
 			}
 			req := api.IntraExchangeInstanceTransferRequest{
 				Source:      source,
@@ -358,6 +358,16 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 			}
 			if cmd.Flags().Changed("destination-shard") {
 				req.DestinationExchangeShard = &dstShard
+			}
+			if dryRun {
+				return printDryRun(opts, req)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
+			rt, err := opts.setup(true)
+			if err != nil {
+				return err
 			}
 			out, err := rt.client.IntraExchangeInstanceTransfer(ctx(), req)
 			if err != nil {
@@ -372,6 +382,7 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 	exchange.Flags().StringVar(&amountDollars, "amount-dollars", "", "Amount in dollars (converted to centicents)")
 	exchange.Flags().IntVar(&srcShard, "source-shard", 0, "Source shard")
 	exchange.Flags().IntVar(&dstShard, "destination-shard", 0, "Destination shard")
+	exchange.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
 	cmd.AddCommand(exchange)
 	return cmd
 }
@@ -379,10 +390,17 @@ func newTransferCmd(opts *RootOptions) *cobra.Command {
 func newSubaccountsCmd(opts *RootOptions) *cobra.Command {
 	cmd := &cobra.Command{Use: "subaccounts", Short: "Margin subaccounts"}
 
-	cmd.AddCommand(&cobra.Command{
+	var dryRun bool
+	create := &cobra.Command{
 		Use:   "create",
 		Short: "Create a new margin subaccount",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if dryRun {
+				return printDryRun(opts, map[string]string{"action": "create_subaccount"})
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
 			rt, err := opts.setup(true)
 			if err != nil {
 				return err
@@ -393,7 +411,9 @@ func newSubaccountsCmd(opts *RootOptions) *cobra.Command {
 			}
 			return rt.out.Print(out)
 		},
-	})
+	}
+	create.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
+	cmd.AddCommand(create)
 
 	var from, to int
 	var amountCents int64
@@ -421,16 +441,23 @@ func newSubaccountsCmd(opts *RootOptions) *cobra.Command {
 			} else if _, err := uuid.Parse(clientTransferID); err != nil {
 				return fmt.Errorf("invalid --client-transfer-id: %w", err)
 			}
-			rt, err := opts.setup(true)
-			if err != nil {
-				return err
-			}
-			out, err := rt.client.TransferBetweenSubaccounts(ctx(), api.ApplySubaccountTransferRequest{
+			req := api.ApplySubaccountTransferRequest{
 				ClientTransferID: clientTransferID,
 				FromSubaccount:   from,
 				ToSubaccount:     to,
 				AmountCents:      amount,
-			})
+			}
+			if dryRun {
+				return printDryRun(opts, req)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
+			rt, err := opts.setup(true)
+			if err != nil {
+				return err
+			}
+			out, err := rt.client.TransferBetweenSubaccounts(ctx(), req)
 			if err != nil {
 				return err
 			}
@@ -442,6 +469,7 @@ func newSubaccountsCmd(opts *RootOptions) *cobra.Command {
 	transfer.Flags().Int64Var(&amountCents, "amount-cents", 0, "Amount in cents")
 	transfer.Flags().StringVar(&amountDollars, "amount-dollars", "", "Amount in dollars (converted to cents)")
 	transfer.Flags().StringVar(&clientTransferID, "client-transfer-id", "", "Idempotency UUID (auto-generated if omitted)")
+	transfer.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
 	cmd.AddCommand(transfer)
 
 	return cmd

@@ -90,6 +90,14 @@ kalshi-perp orders create --ticker X --side bid --count 1 --price 0.5 \
   --tif good_till_canceled --stp maker --dry-run --format json
 ```
 
+Mutating commands against production (`--env prod` or the production REST host) print a warning and require `--confirm-prod`. `--dry-run` does not.
+
+```bash
+kalshi-perp --env prod --confirm-prod orders create \
+  --ticker YOUR_TICKER --side bid --count 1.00 --price 0.5000 \
+  --tif good_till_canceled --stp taker_at_cross
+```
+
 ### Stream market data
 
 ```bash
@@ -144,7 +152,7 @@ Resolution order (highest wins):
 | `stream` | WebSocket JSONL |
 | `config` | `init`, `path`, `show` |
 
-Global flags: `--env`, `--api-key`, `--private-key`, `--format table|json|jsonl`, `--timeout`, `--verbose`.
+Global flags: `--env`, `--api-key`, `--private-key`, `--format table|json|jsonl`, `--timeout`, `--verbose`, `--confirm-prod`.
 
 ### Transfers
 

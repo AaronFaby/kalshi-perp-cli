@@ -37,16 +37,13 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 	var contractsLimit int64
 	var contractsLimitFp string
 	var exchangeIndex int
+	var dryRun bool
 	create := &cobra.Command{
 		Use:   "create",
 		Short: "Create an order group",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("contracts-limit") && contractsLimitFp == "" {
 				return fmt.Errorf("provide --contracts-limit or --contracts-limit-fp")
-			}
-			rt, err := opts.setup(true)
-			if err != nil {
-				return err
 			}
 			req := api.CreateOrderGroupRequest{Subaccount: ptrInt(subaccount, cmd.Flags().Changed("subaccount"))}
 			if cmd.Flags().Changed("contracts-limit") {
@@ -58,6 +55,16 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if cmd.Flags().Changed("exchange-index") {
 				req.ExchangeIndex = &exchangeIndex
 			}
+			if dryRun {
+				return printDryRun(opts, req)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
+			rt, err := opts.setup(true)
+			if err != nil {
+				return err
+			}
 			out, err := rt.client.CreateMarginOrderGroup(ctx(), req)
 			if err != nil {
 				return err
@@ -68,6 +75,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 	create.Flags().Int64Var(&contractsLimit, "contracts-limit", 0, "Contracts limit (rolling window)")
 	create.Flags().StringVar(&contractsLimitFp, "contracts-limit-fp", "", "Contracts limit as fixed-point string")
 	create.Flags().IntVar(&exchangeIndex, "exchange-index", 0, "Exchange index binding")
+	create.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
 	cmd.AddCommand(create)
 
 	cmd.AddCommand(&cobra.Command{
@@ -87,11 +95,18 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 		},
 	})
 
-	cmd.AddCommand(&cobra.Command{
+	deleteCmd := &cobra.Command{
 		Use:   "delete <order_group_id>",
 		Short: "Delete order group (cancels member orders)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			payload := map[string]string{"status": "deleted", "order_group_id": args[0]}
+			if dryRun {
+				return printDryRun(opts, payload)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
 			rt, err := opts.setup(true)
 			if err != nil {
 				return err
@@ -99,15 +114,24 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err := rt.client.DeleteMarginOrderGroup(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount"))); err != nil {
 				return err
 			}
-			return rt.out.Print(map[string]string{"status": "deleted", "order_group_id": args[0]})
+			return rt.out.Print(payload)
 		},
-	})
+	}
+	deleteCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
+	cmd.AddCommand(deleteCmd)
 
-	cmd.AddCommand(&cobra.Command{
+	resetCmd := &cobra.Command{
 		Use:   "reset <order_group_id>",
 		Short: "Reset matched contracts counter",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			payload := map[string]string{"status": "reset", "order_group_id": args[0]}
+			if dryRun {
+				return printDryRun(opts, payload)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
 			rt, err := opts.setup(true)
 			if err != nil {
 				return err
@@ -115,15 +139,24 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err := rt.client.ResetMarginOrderGroup(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount"))); err != nil {
 				return err
 			}
-			return rt.out.Print(map[string]string{"status": "reset", "order_group_id": args[0]})
+			return rt.out.Print(payload)
 		},
-	})
+	}
+	resetCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
+	cmd.AddCommand(resetCmd)
 
-	cmd.AddCommand(&cobra.Command{
+	triggerCmd := &cobra.Command{
 		Use:   "trigger <order_group_id>",
 		Short: "Trigger group (cancel all orders)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			payload := map[string]string{"status": "triggered", "order_group_id": args[0]}
+			if dryRun {
+				return printDryRun(opts, payload)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
 			rt, err := opts.setup(true)
 			if err != nil {
 				return err
@@ -131,9 +164,11 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if err := rt.client.TriggerMarginOrderGroup(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount"))); err != nil {
 				return err
 			}
-			return rt.out.Print(map[string]string{"status": "triggered", "order_group_id": args[0]})
+			return rt.out.Print(payload)
 		},
-	})
+	}
+	triggerCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
+	cmd.AddCommand(triggerCmd)
 
 	var limitContracts int64
 	var limitFp string
@@ -145,16 +180,22 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 			if !cmd.Flags().Changed("contracts-limit") && limitFp == "" {
 				return fmt.Errorf("provide --contracts-limit or --contracts-limit-fp")
 			}
-			rt, err := opts.setup(true)
-			if err != nil {
-				return err
-			}
 			req := api.UpdateOrderGroupLimitRequest{}
 			if cmd.Flags().Changed("contracts-limit") {
 				req.ContractsLimit = &limitContracts
 			}
 			if limitFp != "" {
 				req.ContractsLimitFp = &limitFp
+			}
+			if dryRun {
+				return printDryRun(opts, req)
+			}
+			if err := opts.requireProdConfirm(cmd); err != nil {
+				return err
+			}
+			rt, err := opts.setup(true)
+			if err != nil {
+				return err
 			}
 			if err := rt.client.UpdateMarginOrderGroupLimit(ctx(), args[0], ptrInt(subaccount, cmd.Flags().Changed("subaccount")), req); err != nil {
 				return err
@@ -164,6 +205,7 @@ func newGroupsCmd(opts *RootOptions) *cobra.Command {
 	}
 	limitCmd.Flags().Int64Var(&limitContracts, "contracts-limit", 0, "New contracts limit")
 	limitCmd.Flags().StringVar(&limitFp, "contracts-limit-fp", "", "New limit as fixed-point")
+	limitCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print request without sending")
 	cmd.AddCommand(limitCmd)
 
 	return cmd

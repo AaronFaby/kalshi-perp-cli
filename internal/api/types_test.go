@@ -80,3 +80,95 @@ func TestRequestBodiesMarshalRequiredFields(t *testing.T) {
 		t.Fatal("legacy amount must not be present")
 	}
 }
+
+func TestCandlestickUnmarshalsPerpsOHLC(t *testing.T) {
+	raw := `{
+		"end_period_ts": 1700000000,
+		"bid": {"open":"1.00","low":"0.90","high":"1.10","close":"1.05"},
+		"ask": {"open":"1.01","low":"0.91","high":"1.11","close":"1.06"},
+		"price": {"open":"1.00","low":"0.90","high":"1.10","close":"1.05","mean":"1.02","previous":"0.99"},
+		"volume":"10.00",
+		"volume_notional_value_dollars":"100.0000",
+		"open_interest":"50.00",
+		"open_interest_notional_value_dollars":"500.0000"
+	}`
+	var c Candlestick
+	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		t.Fatal(err)
+	}
+	if c.Bid.Close != "1.05" || c.Ask.Close != "1.06" {
+		t.Fatalf("ohlc = %+v", c)
+	}
+	if c.VolumeNotionalValueDollars != "100.0000" || c.OpenInterestNotionalValueDollars != "500.0000" {
+		t.Fatalf("notionals = %+v", c)
+	}
+	if c.Price.Previous == nil || *c.Price.Previous != "0.99" {
+		t.Fatalf("price = %+v", c.Price)
+	}
+	out, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var remapped map[string]any
+	if err := json.Unmarshal(out, &remapped); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := remapped["yes_bid"]; ok {
+		t.Fatalf("event-contract field leaked: %s", out)
+	}
+	if _, ok := remapped["bid"]; !ok {
+		t.Fatalf("missing bid: %s", out)
+	}
+}
+
+func TestCandlestickIgnoresEventContractFieldNames(t *testing.T) {
+	var c Candlestick
+	if err := json.Unmarshal([]byte(`{"end_period_ts":1,"yes_bid":{"close":"9"},"yes_ask":{"close":"8"},"bid":{"open":"1","low":"1","high":"1","close":"2"}}`), &c); err != nil {
+		t.Fatal(err)
+	}
+	if c.Bid.Close != "2" {
+		t.Fatalf("bid close = %q", c.Bid.Close)
+	}
+}
+
+func TestMarginMarketKeepsBookMarksAndVolume(t *testing.T) {
+	raw := `{
+		"ticker":"KXBTCPERP1","title":"BTC","status":"active",
+		"contract_size":"1.000000","tick_size":"0.0001",
+		"fractional_trading_enabled":true,"exchange_index":1,
+		"bid":"6.1900","ask":"6.2000","price":"6.1950",
+		"volume":"100.00","volume_24h":"10.00",
+		"volume_notional_value_dollars":"620.0000",
+		"open_interest":"50.00","open_interest_notional_value_dollars":"310.0000",
+		"settlement_mark_price":{"price":"6.1940","ts_ms":1},
+		"liquidation_mark_price":{"price":"6.1930","ts_ms":2},
+		"reference_price":{"price":"62000.00","ts_ms":3},
+		"leverage_estimate":5.5
+	}`
+	var m MarginMarket
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.Bid != "6.1900" || m.Ask != "6.2000" || m.Volume24h != "10.00" {
+		t.Fatalf("book/volume = %+v", m)
+	}
+	if m.SettlementMarkPrice == nil || m.SettlementMarkPrice.Price != "6.1940" {
+		t.Fatalf("settlement = %+v", m.SettlementMarkPrice)
+	}
+	if m.LiquidationMarkPrice == nil || m.ReferencePrice == nil || m.LeverageEstimate == nil || *m.LeverageEstimate != 5.5 {
+		t.Fatalf("marks/leverage = %+v", m)
+	}
+	out, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var remapped map[string]any
+	if err := json.Unmarshal(out, &remapped); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"bid", "ask", "settlement_mark_price", "liquidation_mark_price", "reference_price", "volume_24h"} {
+		if _, ok := remapped[k]; !ok {
+			t.Errorf("missing %s in %s", k, out)
+		}
+	}
+}

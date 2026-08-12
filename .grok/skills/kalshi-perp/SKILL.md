@@ -54,7 +54,7 @@ Sign path includes `/trade-api/v2/...` and **strips query parameters**. See [ref
 
 ## Safety
 
-- Confirm before production (`--env prod`) order create/cancel/transfer.
+- Confirm before production (`--env prod`) order create/cancel/transfer. Mutating commands require `--confirm-prod` against production; `--dry-run` does not.
 - Prefer demo for examples and integration smoke tests.
 
 ## References

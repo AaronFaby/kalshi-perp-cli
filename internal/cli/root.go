@@ -51,6 +51,7 @@ func NewRoot() *cobra.Command {
 	root.PersistentFlags().IntVar(&opts.TimeoutSec, "timeout", 0, "HTTP timeout seconds")
 	root.PersistentFlags().StringVar(&opts.ConfigPath, "config", "", "Config file path")
 	root.PersistentFlags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Log request method/path/status to stderr")
+	root.PersistentFlags().Bool(confirmProdFlag, false, "Required to send mutating requests when targeting production")
 
 	root.AddCommand(newVersionCmd())
 	root.AddCommand(newConfigCmd(opts))
